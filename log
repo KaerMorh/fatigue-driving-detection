@@ -1,0 +1,2 @@
+26 det_cls1 = [box for *box, conf, cls in det if cls == 1] cls==0才是人脸
+   right_region = int( w / 3) 这才是右2/3
