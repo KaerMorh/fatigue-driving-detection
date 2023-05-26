@@ -283,6 +283,9 @@ def run_video(detector, predictor,video_path, save_path, img_size=640, stride=32
     mouth_open_frame = 0
     use_phone_frame = 0
     max_phone = 0
+    max_eyes = 0
+    max_mouth = 0
+    max_wandering = 0
     look_around_frame = 0
 
     sensitivity = 0.001
@@ -365,14 +368,46 @@ def run_video(detector, predictor,video_path, save_path, img_size=640, stride=32
         else:
             use_phone_frame = 0
 
+        if is_eyes_closed:
+            eyes_closed_frame += 1
+            if eyes_closed_frame > max_eyes:
+                max_eyes = eyes_closed_frame
+        else:
+            eyes_closed_frame = 0
+
+        if  is_turning_head:
+            look_around_frame += 1
+            if look_around_frame > max_wandering:
+                max_wandering = look_around_frame
+        else:
+            look_around_frame = 0
+
+        if is_yawning:
+            mouth_open_frame += 1
+            if mouth_open_frame > max_mouth:
+                max_mouth = mouth_open_frame
+        else:
+            mouth_open_frame = 0
 
         ###################################################
         # im0 = display_results(img0, det, names,is_eyes_closed, is_turning_head, is_yawning)
         # # write video
         # vid_writer.write(im0)
 
-        if max_phone >= 9:
+        if max_phone >= 7:
             result['result']['category'] = 3
+            break
+
+        elif max_wandering >= 9:
+            result['result']['category'] = 4
+            break
+
+        elif max_mouth >= 9:
+            result['result']['category'] = 2
+            break
+
+        elif max_eyes >= 9:
+            result['result']['category'] = 1
             break
 
     # vid_writer.release()
