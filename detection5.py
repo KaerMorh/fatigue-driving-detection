@@ -9,6 +9,7 @@ import math
 import cv2
 import re
 import json
+from datetime import datetime
 
 
 
@@ -294,6 +295,7 @@ def run_video(detector, predictor,video_path, save_path, img_size=640, stride=32
 
         img0, img = preprocess_frame(cap, img_size, stride,frame)
         frame += 10
+        if frame > frames: break
         if img0 is None or img is None:
             break
 
@@ -392,26 +394,35 @@ def numeric_filename(filename):
     numbers = [int(num) for num in numbers]
     return numbers, ext
 
+
 def main():
     detector = dlib.get_frontal_face_detector()
     predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
-    video_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\vedio'
+    # video_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\vedio'
+    video_dir = r'F:\ccp1\call'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
+
 
     video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]
 
+    # Create a new log file with the current time
+    log_file = os.path.join(save_dir, datetime.now().strftime("%Y%m%d%H%M%S") + '_log.json')
+    log = {}
+
     for video_file in video_files:
-        # Construct the full path of the video file and the output file
         video_path = os.path.join(video_dir, video_file)
         save_path = os.path.join(save_dir, video_file)
 
-        result = run_video(detector, predictor, video_path, save_path, img_size=640, stride=32, augment=False,
-                           visualize=False)
+        result = run_video(detector, predictor, video_path, save_path, img_size=640, stride=32, augment=False, visualize=False)
         json_save_path = save_path.rsplit('.', 1)[0] + '.json'
 
         with open(json_save_path, 'w') as json_file:
             json.dump(result, json_file)
 
+        # Update the log and write it to the log file
+        log[video_file] = result
+        with open(log_file, 'w') as log_json:
+            json.dump(log, log_json)
 
 
 if __name__ == "__main__":
