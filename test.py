@@ -59,7 +59,7 @@ def output_module(im0):
 def input_module():
     img0 = grab_screen(region=(0, 0, 1920, 1080))
     img0 = cv2.resize(img0, (960, 540))
-    img = letterbox(img0, imgsz, stride=stride)[0]
+    img = letterbox(img0, 640, stride=stride)[0]
     img = img.transpose((2, 0, 1))[::-1]
     img = np.ascontiguousarray(img)
     img = torch.from_numpy(img).to(device)
@@ -171,7 +171,7 @@ while True:
     is_eyes_closed, is_turning_head, is_yawning = face_analysis(img0, detector, predictor)
 
     ###################################################
-    im0 = display_results(img0, det, names, IOUU, is_turning_head, is_yawning)
+    im0 = display_results(img0, det, names, is_eyes_closed, is_turning_head, is_yawning)
     continue_loop = output_module(im0)
     # continue_loop = output_module(img1)
     if not continue_loop:

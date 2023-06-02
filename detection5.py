@@ -296,11 +296,13 @@ def run_video(detector, predictor,video_path, save_path, img_size=640, stride=32
 
     while frame < frames:              # while self.input_reader.is_open():
 
-        img0, img = preprocess_frame(cap, img_size, stride,frame)
-        frame += 10
+        img0, img = preprocess_frame(cap, img_size, stride,-1)
+        frame += 1
         if frame > frames: break
         if img0 is None or img is None:
             break
+        if frame % 10 != 0:  # 如果计数器不是10的倍数，跳过当前循环
+            continue
 
         print(f'video {frame}/{frames} {save_path}')
 
@@ -309,6 +311,8 @@ def run_video(detector, predictor,video_path, save_path, img_size=640, stride=32
         det = infer_image(model, img, img0, augment, visualize)
 
         phone_around_face = False
+
+
 
         ##################以下内容为 聚焦框内目标操作######################
         '''
@@ -337,12 +341,11 @@ def run_video(detector, predictor,video_path, save_path, img_size=640, stride=32
 
             # check if a phone is also detected
             if det_cls2_right:
-                print("has a phone")
                 # Find the phone box most to the right bottom
                 box_most_right_bottom_phone = max(det_cls2_right, key=lambda box: (box[2], box[3]))
 
                 # check overlap
-                print(iou(box_most_right, box_most_right_bottom_phone))
+                print(iou(box_most_right, box_most_right_bottom_phone)) #TODO:在一切完工后删除测试项
                 if iou(box_most_right, box_most_right_bottom_phone) > sensitivity:
                     phone_around_face = True  ##判断手机
 
