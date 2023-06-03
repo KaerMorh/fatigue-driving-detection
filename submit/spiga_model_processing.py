@@ -56,19 +56,19 @@ def spig_process_frame(frame, bbox):
     features = processor.inference(frame, [bbox])
 
     x0, y0, w, h = bbox
-    canvas = copy.deepcopy(frame)
+    # canvas = copy.deepcopy(frame)
     landmarks = np.array(features['landmarks'][0])
     headpose = np.array(features['headpose'][0])
 
     # Plot features
-    plotter = Plotter()
-    canvas = plotter.landmarks.draw_landmarks(canvas, landmarks)
-    canvas = plotter.hpose.draw_headpose(canvas, [x0,y0,x0+w,y0+h], headpose[:3], headpose[3:], euler=True)
+    # plotter = Plotter()
+    # canvas = plotter.landmarks.draw_landmarks(canvas, landmarks)
+    # canvas = plotter.hpose.draw_headpose(canvas, [x0,y0,x0+w,y0+h], headpose[:3], headpose[3:], euler=True)
     # canvas = draw_headpose_simple(canvas, [x0, y0, x0 + w, y0 + h], headpose[:3], headpose[3:], euler=True)
     # (h, w) = canvas.shape[:2]
     # canvas = cv2.resize(canvas, (512, int(h * 512 / w)))
 
-    return canvas
+    return 1
 
 
 if __name__ == '__main__':

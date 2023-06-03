@@ -279,6 +279,7 @@ def process_results(results, img0, sensitivity):
 
 
 def run_video(video_path,mode):
+    overlap = None
     cap = cv2.VideoCapture(video_path)
 
     yolo_model = YOLO('best.pt')
@@ -310,6 +311,8 @@ def run_video(video_path,mode):
     now = time.time()  # 读取视频与加载模型的时间不被计时（？）
 
     while cap.isOpened():
+        phone_around_face = False
+        overlap = 0
         if mode == 1:
             cnt += 1
             if cnt % 10 != 0:
@@ -321,13 +324,86 @@ def run_video(video_path,mode):
         # process the image with the yolo and get the person list
         results = yolo_model(frame)
 
-        img1,bbox = process_results(results, frame, sensitivity)
+        # img1,bbox = process_results(results, frame, sensitivity)
+
+        # 创建img0的副本
+        img1 = frame.copy()
+
+        # 获取图像的宽度
+        img_height = frame.shape[0]
+
+        img_width = frame.shape[1]
+
+        # 获取所有的边界框
+        boxes = results[0].boxes
+
+        # 获取所有类别
+        classes = boxes.cls
+
+        # 获取所有的置信度
+        confidences = boxes.conf
+
+        # 初始化最靠右的框和最靠右的手机
+        rightmost_box = None
+        rightmost_phone = None
+
+        # 遍历所有的边界框
+        for box, cls, conf in zip(boxes.xyxy, classes, confidences):
+            # 如果类别为1（手机）且在图片的右2/3区域内
+            if cls == 1 and box[0] > img_width * 1 / 3:
+                # 如果还没有找到最靠右的手机或者这个手机更靠右
+                if rightmost_phone is None or box[0] > rightmost_phone[0]:
+                    rightmost_phone = box
+
+            # 如果类别为0（驾驶员）且在图片的右2/3区域内
+            if cls == 0 and box[0] > img_width * 1 / 3:
+                # 如果还没有找到最靠右的框或者这个框更靠右
+                if rightmost_box is None or box[0] > rightmost_box[0]:
+                    rightmost_box = box
+
+        # 如果没有找到有效的检测框，返回img1为img0的右3/5区域
+        if rightmost_box is None:
+            img1 = img1
+            m1 = int(img_width * 2 / 5)
+            n1 = 0
+            # 右下角的坐标
+            m2 = img_width
+            n2 = img_height
+
+        # 否则，返回img1仅拥有最靠右的框内的图片
+        else:
+            x1, y1, x2, y2 = rightmost_box
+            x1 = max(0, int(x1 - 0.1 * (x2 - x1)))
+            y1 = max(0, int(y1 - 0.1 * (y2 - y1)))
+            x2 = min(img_width, int(x2 + 0.1 * (x2 - x1)))
+            y2 = min(img_width, int(y2 + 0.1 * (y2 - y1)))
+            img1 = img1[y1:y2, x1:x2]
+            m1, n1, m2, n2 = x1, y1, x2, y2
 
 
+            # 计算交集的面积
+            if rightmost_phone is not None and rightmost_box is not None:
+                # 计算两个框的IoU
+                overlap = iou(rightmost_box, rightmost_phone)
+
+                cv2.putText(img1, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+                # 如果IoU大于阈值，打印警告
+                if overlap > sensitivity:
+                    print("Warning: phone and driver overlap!")
+
+        # 计算边界框的宽度和高度
+        w = m2 - m1
+        h = n2 - n1
+
+        # 创建 bbox
+        bbox = [m1, n1, w, h]
 
 
 
         frame = spig_process_frame(frame, bbox)
+        if overlap:
+            cv2.putText(frame, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
         continue_loop = output_module(frame)
 
         # continue_loop = output_module(img1)

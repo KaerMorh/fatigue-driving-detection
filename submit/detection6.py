@@ -2,10 +2,11 @@ from ultralytics import YOLO
 from spiga_model_processing import spig_process_frame
 import cv2
 
-import torch
+# import torch
 import numpy as np
 from datetime import datetime
 import time
+import json
 
 # yolo_model = YOLO('best.pt')
 # device = 'cpu'
@@ -105,43 +106,195 @@ def run_video(video_path,save_path):
     max_wandering = 0
     look_around_frame = 0
 
+
     sensitivity = 0.001
 
     now = time.time()  # 读取视频与加载模型的时间不被计时（？）
 
     while cap.isOpened():
+        if cnt >= frames :
+            break
+        phone_around_face = False
+        overlap = 0
         cnt += 1
+        ret, frame = cap.read()
         if cnt % 10 != 0:
             continue
+        if cnt - 80 > frames:   #最后三秒不判断了
+            break
 
-        ret, frame = cap.read()
-        print(f'video {frame}/{frames} {save_path}')  #delete
+
+        print(f'video {cnt}/{frames} {save_path}')  #delete
         # process the image with the yolo and get the person list
         results = yolo_model(frame)
 
 
+        # img1,bbox = process_results(results, frame, sensitivity)
+
+        # 创建img0的副本
         img1 = frame.copy()
 
-        for result in results:
-            boxes = result.boxes
+        # 获取图像的宽度
+        img_height = frame.shape[0]
 
-        # process the boxes and get the person_list
-        person_list = []
-        for bbox in boxes.data:
-            if int(bbox[-1]) == 0 and bbox[-2] > 0.5:
-                bbox = (int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3]))
-                person_list.append(xyxy2xywh(bbox))
-            else:
-                continue
+        img_width = frame.shape[1]
 
-        # process the image with the spig_model
-        for bbox in person_list:
-            frame = spig_process_frame(frame, bbox)
-        continue_loop = output_module(frame)
+        # 获取所有的边界框
+        boxes = results[0].boxes
+
+        # 获取所有类别
+        classes = boxes.cls
+
+        # 获取所有的置信度
+        confidences = boxes.conf
+
+        # 初始化最靠右的框和最靠右的手机
+        rightmost_box = None
+        rightmost_phone = None
+
+        # 遍历所有的边界框
+        for box, cls, conf in zip(boxes.xyxy, classes, confidences):
+            # 如果类别为1（手机）且在图片的右2/3区域内
+            if cls == 1 and box[0] > img_width * 1 / 3:
+                # 如果还没有找到最靠右的手机或者这个手机更靠右
+                if rightmost_phone is None or box[0] > rightmost_phone[0]:
+                    rightmost_phone = box
+
+            # 如果类别为0（驾驶员）且在图片的右2/3区域内
+            if cls == 0 and box[0] > img_width * 1 / 3:
+                # 如果还没有找到最靠右的框或者这个框更靠右
+                if rightmost_box is None or box[0] > rightmost_box[0]:
+                    rightmost_box = box
+
+        # 如果没有找到有效的检测框，返回img1为img0的右3/5区域
+        if rightmost_box is None:
+            img1 = img1
+            m1 = int(img_width * 2 / 5)
+            n1 = 0
+            # 右下角的坐标
+            m2 = img_width
+            n2 = img_height
+
+        # 否则，返回img1仅拥有最靠右的框内的图片
+        else:
+            x1, y1, x2, y2 = rightmost_box
+            x1 = max(0, int(x1 - 0.1 * (x2 - x1)))
+            y1 = max(0, int(y1 - 0.1 * (y2 - y1)))
+            x2 = min(img_width, int(x2 + 0.1 * (x2 - x1)))
+            y2 = min(img_width, int(y2 + 0.1 * (y2 - y1)))
+            # img1 = img1[y1:y2, x1:x2]
+            m1, n1, m2, n2 = x1, y1, x2, y2
+
+            # 计算交集的面积
+            if rightmost_phone is not None and rightmost_box is not None:
+                # 计算两个框的IoU
+                overlap = iou(rightmost_box, rightmost_phone)
+
+                # cv2.putText(img1, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                print(overlap)
+                # 如果IoU大于阈值，打印警告
+                if overlap > sensitivity:
+                    phone_around_face = True  ##判断手机
+
+        # 计算边界框的宽度和高度
+        w = m2 - m1
+        h = n2 - n1
+
+        # 创建 bbox
+        bbox = [m1, n1, w, h]
+
+        frame = spig_process_frame(frame, bbox) #TODO: 删除
+        # is_eyes_closed, is_turning_head, is_yawning = face_analysis(frame, bbox) #TODO: 添加功能
+        is_eyes_closed, is_turning_head, is_yawning = False,False,False
+
+        if phone_around_face:
+            use_phone_frame += 1
+            if use_phone_frame > max_phone:
+                max_phone = use_phone_frame
+        else:
+            use_phone_frame = 0
+
+        if is_eyes_closed:
+            eyes_closed_frame += 1
+            if eyes_closed_frame > max_eyes:
+                max_eyes = eyes_closed_frame
+        else:
+            eyes_closed_frame = 0
+
+        if is_turning_head:
+            look_around_frame += 1
+            if look_around_frame > max_wandering:
+                max_wandering = look_around_frame
+        else:
+            look_around_frame = 0
+
+        if is_yawning:
+            mouth_open_frame += 1
+            if mouth_open_frame > max_mouth:
+                max_mouth = mouth_open_frame
+        else:
+            mouth_open_frame = 0
+
+            ###################################################
+            # im0 = display_results(img0, det, names,is_eyes_closed, is_turning_head, is_yawning)
+            # # write video
+            # vid_writer.write(im0)
+
+        if max_phone >= 7:
+            result['result']['category'] = 3
+            break
+
+        elif max_wandering >= 9:
+            result['result']['category'] = 4
+            break
+
+        elif max_mouth >= 9:
+            result['result']['category'] = 2
+            break
+
+        elif max_eyes >= 9:
+            result['result']['category'] = 1
+            break
 
         # continue_loop = output_module(img1)
-        if not continue_loop:
-            break
+        # vid_writer.release()
+    final_time = time.time()
+    duration = int(np.round((final_time - now) * 1000))
+
+    cap.release()
+    print(f'{video_path} finish, save to {save_path}') #delete
+
+    result['result']['duration'] = duration
+    # print(result) #delete
+    return result
+
+def main():
+    # video_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\vedio'
+    video_dir = r'F:\ccp1\call'
+    save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
+
+
+    video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]
+
+    # Create a new log file with the current time
+    log_file = os.path.join(save_dir, datetime.now().strftime("%Y%m%d%H%M%S") + '_log.json')
+    log = {}
+
+    for video_file in video_files:
+        video_path = os.path.join(video_dir, video_file)
+        save_path = os.path.join(save_dir, video_file)
+
+        result = run_video(video_path,save_path)
+        json_save_path = save_path.rsplit('.', 1)[0] + '.json'
+
+        with open(json_save_path, 'w') as json_file:
+            json.dump(result, json_file)
+
+        # Update the log and write it to the log file
+        log[video_file] = result
+        with open(log_file, 'w') as log_json:
+            json.dump(log, log_json)
+
 
 if __name__ == '__main__':
     import os
@@ -149,4 +302,5 @@ if __name__ == '__main__':
     os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
     # yolo_detection()
     # yolo_spig_cap_processing()
-    run_video(video_path)
+    # run_video(video_path,save_path)
+    main()
