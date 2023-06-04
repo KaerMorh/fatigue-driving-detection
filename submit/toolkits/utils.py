@@ -199,11 +199,11 @@ def face_analysis_2d(image, rect):
 
 
 # total
-def face_analysis(image, rect):
+def face_analysis(image, rect, test=0):
     # set threshold
-    ANGLE_THRESHOLD = 30
+    ANGLE_THRESHOLD = 35
     EAR_THRESHOLD = 0.2
-    YAWN_THRESHOLD = 0.8
+    YAWN_THRESHOLD = 0.4
 
     landmarks, headpose, _ = spiga_process_frame(spiga_model, image, rect)
 
@@ -211,6 +211,9 @@ def face_analysis(image, rect):
     ear = eye_ratio_3d(landmarks)
     mar = mouth_aspect_ratio_3d(landmarks)
     pose = pose_estimation_3d(headpose)
+    if test == 1:
+        return pose, mar, ear
+
     is_turning_head = True if np.abs(pose[[0, 2]]).max() > ANGLE_THRESHOLD else False
     is_yawning = True if mar > YAWN_THRESHOLD else False
     is_eyes_closed = True if ear < EAR_THRESHOLD else False
@@ -223,3 +226,5 @@ def face_analysis(image, rect):
     #     is_eyes_closed, is_yawning = False, False
 
     return is_turning_head, is_yawning, is_eyes_closed
+
+

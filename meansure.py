@@ -1,6 +1,6 @@
 import json
 
-path = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output\close1.json'
+path = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output\double1.json'
 # 读取日志文件
 import json
 
@@ -23,11 +23,11 @@ def check_video_logs(path):
         # 检查category的值是否与视频名字中的数字对应
         if (category_num == 31 and category != 0) or (category_num == 30 and category != 3) or(category_num == 20 and category != 2) or (category_num == 31 and category != 0):
             incorrect += 1
-            incorrect_video_names.append(video_name)
+            incorrect_video_names.append(video_name.join(('',str(category))))
 
         elif (category_num == 11 and category != 0) or (category_num == 10 and category != 1) :
             incorrect += 1
-            incorrect_video_names.append(video_name)
+            incorrect_video_names.append(video_name.join(('',str(category))))
 
         else:
             correct += 1

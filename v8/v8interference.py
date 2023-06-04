@@ -10,6 +10,7 @@ device = 'cpu'
 half = device != 'cpu'
 # from utils.augmentations import letterbox
 import time
+from submit.toolkits.utils import face_analysis
 
 def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleFill=False, scaleup=True, stride=32):
     # Resize and pad image while meeting stride-multiple constraints
@@ -279,6 +280,7 @@ def process_results(results, img0, sensitivity):
 
 
 def run_video(video_path,mode):
+
     overlap = None
     cap = cv2.VideoCapture(video_path)
 
@@ -392,6 +394,8 @@ def run_video(video_path,mode):
                 if overlap > sensitivity:
                     print("Warning: phone and driver overlap!")
 
+
+
         # 计算边界框的宽度和高度
         w = m2 - m1
         h = n2 - n1
@@ -401,9 +405,34 @@ def run_video(video_path,mode):
 
 
 
+
+        ANGLE_THRESHOLD = 30
+        EAR_THRESHOLD = 0.2
+        YAWN_THRESHOLD = 0.4
+
+        pose, mar, ear = 0, 0,
+
+
+
+        pose, mar, ear = face_analysis(frame, bbox, test=1)
+        np.abs(pose[[0, 2]]).max()
+        mar > YAWN_THRESHOLD
+        ear < EAR_THRESHOLD
         frame = spig_process_frame(frame, bbox)
-        if overlap:
-            cv2.putText(frame, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        # cv2.putText(frame, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        cv2.putText(frame, f"Pose max: {np.abs(pose[[0, 2]]).max():.2f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        cv2.putText(frame, f"Yaw: {np.abs(pose[0]):.2f}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6,(0, 255, 0), 2)
+        if         mar > YAWN_THRESHOLD :
+            cv2.putText(frame, f"MAR: {mar}", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+        else:
+            cv2.putText(frame, f"MAR: {mar}", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        if ear < EAR_THRESHOLD:
+            cv2.putText(frame, f"EAR: {ear}", (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+        else:
+            cv2.putText(frame, f"EAR: {ear}", (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+            # if overlap:
+        #     cv2.putText(frame, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
         continue_loop = output_module(frame)
 
         # continue_loop = output_module(img1)
