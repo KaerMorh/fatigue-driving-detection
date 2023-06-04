@@ -1,56 +1,13 @@
 from ultralytics import YOLO
-from toolkits.model_loader import load_spiga_framework
 from toolkits.utils import face_analysis
 import cv2
 
-# import torch
+
 import numpy as np
 from datetime import datetime
 import time
 import json
 
-# yolo_model = YOLO('best.pt')
-# device = 'cpu'
-# half = device != 'cpu'
-# from utils.augmentations import letterbox
-
-def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleFill=False, scaleup=True, stride=32):
-    # Resize and pad image while meeting stride-multiple constraints
-    shape = im.shape[:2]  # current shape [height, width]
-    if isinstance(new_shape, int):
-        new_shape = (new_shape, new_shape)
-
-    # Scale ratio (new / old)
-    r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
-    if not scaleup:  # only scale down, do not scale up (for better val mAP)
-        r = min(r, 1.0)
-
-    # Compute padding
-    ratio = r, r  # width, height ratios
-    new_unpad = int(round(shape[1] * r)), int(round(shape[0] * r))
-    dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]  # wh padding
-    if auto:  # minimum rectangle
-        dw, dh = np.mod(dw, stride), np.mod(dh, stride)  # wh padding
-    elif scaleFill:  # stretch
-        dw, dh = 0.0, 0.0
-        new_unpad = (new_shape[1], new_shape[0])
-        ratio = new_shape[1] / shape[1], new_shape[0] / shape[0]  # width, height ratios
-
-    dw /= 2  # divide padding into 2 sides
-    dh /= 2
-
-    if shape[::-1] != new_unpad:  # resize
-        im = cv2.resize(im, new_unpad, interpolation=cv2.INTER_LINEAR)
-    top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
-    left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
-    im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
-    return im, ratio, (dw, dh)
-
-
-def xyxy2xywh(bbox):
-    x0, y0, x1, y1 = bbox
-    w, h = x1 - x0, y1 - y0
-    return x0, y0, w, h
 
 
 def iou(box1, box2):
@@ -82,7 +39,6 @@ def run_video(video_path, save_path):
     # 初始化所有模型
     yolo_model = YOLO('best.pt')
     device = 'cpu'
-    half = device != 'cpu'
     results = yolo_model(cv2.imread('bus.jpg'))
 
 
@@ -93,22 +49,9 @@ def run_video(video_path, save_path):
     fps = cap.get(cv2.CAP_PROP_FPS)
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    # save_path += os.path.basename(video_path)
-    # vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
+
     ######################################################################################################
     result = {"result": {"category": 0, "duration": 6000}}
-    phase0 = 0
-    phase1 = 0
-    phase2 = 0
-    phase3 = 0
-    phase4 = 0
-    phase5 = 0
-    m0 = 0
-    m1 = 0
-    m2 = 0
-    m3 = 0
-    m4 = 0
-    m5 = 0
 
 
     ANGLE_THRESHOLD = 35
@@ -129,7 +72,6 @@ def run_video(video_path, save_path):
     now = time.time()  # 读取视频与加载模型的时间不被计时（？）
 
     while cap.isOpened():
-        phase0 = time.time()
 
         if cnt >= frames:
             break
@@ -145,18 +87,15 @@ def run_video(video_path, save_path):
         if cnt + 80 > frames:  # 最后三秒不判断了
             break
 
-        phase1 = time.time()
-        m0 += (phase1 - phase0)
+
 
         print(f'video {cnt}/{frames} {save_path}')  # delete
         # process the image with the yolo and get the person list
         results = yolo_model(frame)
 
 
-        phase2 = time.time()
-        m1 += (phase2 -phase1)
 
-        # img1,bbox = process_results(results, frame, sensitivity)
+
 
         # 创建img0的副本
         img1 = frame.copy()
@@ -230,8 +169,6 @@ def run_video(video_path, save_path):
         # 创建 bbox
         bbox = [m1, n1, w, h]
 
-        phase3 = time.time()
-        m2 += (phase3 - phase2)
 
         # frame = spig_process_frame(frame, bbox)  # TODO: 删除
         if phone_around_face == False:
@@ -244,8 +181,6 @@ def run_video(video_path, save_path):
             # is_eyes_closed, is_turning_head, is_yawning = face_analysis(frame, bbox) # TODO: 添加功能
         # is_eyes_closed, is_turning_head, is_yawning = False, False, False
 
-        phase4 = time.time()
-        m3 += (phase4 -phase3)
 
 
         if is_eyes_closed:
@@ -301,29 +236,19 @@ def run_video(video_path, save_path):
         elif max_eyes >= 7:
             result['result']['category'] = 1
             break
-        phase5 = time.time()
-        m4 += (phase5 -phase4)
-        # continue_loop = output_module(img1)
-        # vid_writer.release()
+
     final_time = time.time()
     duration = int(np.round((final_time - now) * 1000))
 
     cap.release()
-    print(f'{video_path} finish, save to {save_path}')  # delete
-    print(f'phase0-1={m0}')
-    print(f'phase1-2={m1}')
-    print(f'phase2-3={m2}')
-    print(f'phase3-4={m3}')
-    print(f'phase4-0={m4}')
 
 
     result['result']['duration'] = duration
-    # print(result) #delete
+
     return result
 
 
 def main():
-    # video_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\vedio'
     video_dir = r'F:\ccp1\closeandlawn'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
@@ -352,11 +277,5 @@ def main():
 if __name__ == '__main__':
     import os
 
-    # video_path = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\vedio\day_man_001_30_2.mp4'
-    # video_path = './day_man_002_20_1.mp4'
-    # save_path = './log'
     os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-    # yolo_detection()
-    # yolo_spig_cap_processing()
-    # print(run_video(video_path,save_path))
     main()
