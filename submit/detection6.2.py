@@ -1,5 +1,6 @@
 from ultralytics import YOLO
-from spiga_model_processing import spig_process_frame
+from toolkits.model_loader import load_spiga_framework
+from toolkits.utils import face_analysis
 import cv2
 
 # import torch
@@ -45,6 +46,7 @@ def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleF
     im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
     return im, ratio, (dw, dh)
 
+
 def xyxy2xywh(bbox):
     x0, y0, x1, y1 = bbox
     w, h = x1 - x0, y1 - y0
@@ -74,17 +76,15 @@ def iou(box1, box2):
     return iou
 
 
-
-
-
-
-
-def run_video(video_path,save_path):
+def run_video(video_path, save_path):
     cap = cv2.VideoCapture(video_path)
 
+    # 初始化所有模型
     yolo_model = YOLO('best.pt')
     device = 'cpu'
     half = device != 'cpu'
+    results = yolo_model(cv2.imread('bus.jpg'))
+
 
     cnt = 0  # 开始处理的帧数
     frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))  # 待处理的总帧数
@@ -97,6 +97,21 @@ def run_video(video_path,save_path):
     # vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
     ######################################################################################################
     result = {"result": {"category": 0, "duration": 6000}}
+    phase0 = 0
+    phase1 = 0
+    phase2 = 0
+    phase3 = 0
+    phase4 = 0
+    phase5 = 0
+    m0 = 0
+    m1 = 0
+    m2 = 0
+    m3 = 0
+    m4 = 0
+    m5 = 0
+
+
+
     eyes_closed_frame = 0
     mouth_open_frame = 0
     use_phone_frame = 0
@@ -106,13 +121,14 @@ def run_video(video_path,save_path):
     max_wandering = 0
     look_around_frame = 0
 
-
     sensitivity = 0.001
 
     now = time.time()  # 读取视频与加载模型的时间不被计时（？）
 
     while cap.isOpened():
-        if cnt >= frames :
+        phase0 = time.time()
+
+        if cnt >= frames:
             break
         phone_around_face = False
         overlap = 0
@@ -120,15 +136,19 @@ def run_video(video_path,save_path):
         ret, frame = cap.read()
         if cnt % 10 != 0:
             continue
-        if cnt - 80 > frames:   #最后三秒不判断了
+        if cnt + 80 > frames:  # 最后三秒不判断了
             break
 
+        phase1 = time.time()
+        m0 += (phase1 - phase0)
 
-
-        print(f'video {cnt}/{frames} {save_path}')  #delete
+        print(f'video {cnt}/{frames} {save_path}')  # delete
         # process the image with the yolo and get the person list
         results = yolo_model(frame)
 
+
+        phase2 = time.time()
+        m1 += (phase2 -phase1)
 
         # img1,bbox = process_results(results, frame, sensitivity)
 
@@ -204,10 +224,15 @@ def run_video(video_path,save_path):
         # 创建 bbox
         bbox = [m1, n1, w, h]
 
-        frame = spig_process_frame(frame, bbox) #TODO: 删除
-        # is_eyes_closed, is_turning_head, is_yawning = face_analysis(frame, bbox) #TODO: 添加功能
-        is_eyes_closed, is_turning_head, is_yawning = False,False,False
+        phase3 = time.time()
+        m2 += (phase3 - phase2)
 
+        # frame = spig_process_frame(frame, bbox)  # TODO: 删除
+        is_eyes_closed, is_turning_head, is_yawning = face_analysis(frame, bbox) # TODO: 添加功能
+        # is_eyes_closed, is_turning_head, is_yawning = False, False, False
+
+        phase4 = time.time()
+        m3 += (phase4 -phase3)
         if phone_around_face:
             use_phone_frame += 1
             if use_phone_frame > max_phone:
@@ -256,24 +281,31 @@ def run_video(video_path,save_path):
         elif max_eyes >= 9:
             result['result']['category'] = 1
             break
-
+        phase5 = time.time()
+        m4 += (phase5 -phase4)
         # continue_loop = output_module(img1)
         # vid_writer.release()
     final_time = time.time()
     duration = int(np.round((final_time - now) * 1000))
 
     cap.release()
-    print(f'{video_path} finish, save to {save_path}') #delete
+    print(f'{video_path} finish, save to {save_path}')  # delete
+    print(f'phase0-1={m0}')
+    print(f'phase1-2={m1}')
+    print(f'phase2-3={m2}')
+    print(f'phase3-4={m3}')
+    print(f'phase4-0={m4}')
+
 
     result['result']['duration'] = duration
     # print(result) #delete
     return result
 
+
 def main():
     # video_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\vedio'
-    video_dir = r'F:\ccp1\call'
+    video_dir = r'F:\ccp1\close'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
-
 
     video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]
 
@@ -285,7 +317,7 @@ def main():
         video_path = os.path.join(video_dir, video_file)
         save_path = os.path.join(save_dir, video_file)
 
-        result = run_video(video_path,save_path)
+        result = run_video(video_path, save_path)
         json_save_path = save_path.rsplit('.', 1)[0] + '.json'
 
         with open(json_save_path, 'w') as json_file:
@@ -299,9 +331,12 @@ def main():
 
 if __name__ == '__main__':
     import os
-    video_path = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\vedio\day_man_001_30_2.mp4'
+
+    # video_path = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\vedio\day_man_001_30_2.mp4'
+    # video_path = './day_man_002_20_1.mp4'
+    # save_path = './log'
     os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
     # yolo_detection()
     # yolo_spig_cap_processing()
-    # run_video(video_path,save_path)
+    # print(run_video(video_path,save_path))
     main()
