@@ -206,12 +206,14 @@ def face_analysis(image, rect, test=0):
     YAWN_THRESHOLD = 0.4
 
     landmarks, headpose, _ = spiga_process_frame(spiga_model, image, rect)
+    if test == 2:
+        landmarks, headpose, _ = spiga_process_frame(spiga_model, image, rect,plot=1)
 
     # 计算纵横比
     ear = eye_ratio_3d(landmarks)
     mar = mouth_aspect_ratio_3d(landmarks)
     pose = pose_estimation_3d(headpose)
-    if test == 1:
+    if test != 0:
         return pose, mar, ear
 
     is_turning_head = True if np.abs(pose[[0, 2]]).max() > ANGLE_THRESHOLD else False

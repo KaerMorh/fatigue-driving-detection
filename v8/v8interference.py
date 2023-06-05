@@ -410,15 +410,16 @@ def run_video(video_path,mode):
         EAR_THRESHOLD = 0.2
         YAWN_THRESHOLD = 0.4
 
-        pose, mar, ear = 0, 0,
+        pose, mar, ear = 0, 0,0
 
 
 
-        pose, mar, ear = face_analysis(frame, bbox, test=1)
+        pose, mar, ear = face_analysis(frame, bbox, test=2)
         np.abs(pose[[0, 2]]).max()
         mar > YAWN_THRESHOLD
         ear < EAR_THRESHOLD
-        frame = spig_process_frame(frame, bbox)
+
+        # frame = spig_process_frame(frame, bbox)
         # cv2.putText(frame, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
         cv2.putText(frame, f"Pose max: {np.abs(pose[[0, 2]]).max():.2f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
         cv2.putText(frame, f"Yaw: {np.abs(pose[0]):.2f}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6,(0, 255, 0), 2)
@@ -432,8 +433,10 @@ def run_video(video_path,mode):
             cv2.putText(frame, f"EAR: {ear}", (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
             # if overlap:
-        #     cv2.putText(frame, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-        continue_loop = output_module(frame)
+            cv2.putText(frame, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        # continue_loop = output_module(frame)
+        res_plotted = results[0].plot()
+        continue_loop = output_module(res_plotted)
 
         # continue_loop = output_module(img1)
         if not continue_loop:

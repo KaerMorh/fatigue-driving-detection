@@ -1,6 +1,6 @@
 import json
 
-path = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output\double1.json'
+path = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output\three1.json'
 # 读取日志文件
 import json
 
