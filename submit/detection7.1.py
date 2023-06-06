@@ -1,14 +1,16 @@
 from ultralytics import YOLO
-from toolkits.utils import face_analysis
+from toolkits.analysis import face_analysis
+from toolkits.inference import spiga_frame_inference
+from toolkits.arithmetic_3d import Expert_3D
 import cv2
-
+import os
 
 import numpy as np
 from datetime import datetime
 import time
 import json
 
-
+expert_3d = Expert_3D()
 
 def iou(box1, box2):
     """Calculate Intersection over Union (IoU) between two bounding boxes"""
@@ -33,6 +35,16 @@ def iou(box1, box2):
     return iou
 
 
+def scan_file(path):
+    filelist = os.listdir(path)
+    file_d = {path: filelist}
+    for filename in filelist:
+        filepath = os.path.join(path, filename)
+        if os.path.isdir(filepath):
+            file_d[filepath] = scan_file(filepath)
+    return file_d
+
+
 def run_video(video_path, save_path):
     cap = cv2.VideoCapture(video_path)
 
@@ -40,7 +52,6 @@ def run_video(video_path, save_path):
     yolo_model = YOLO('best.pt')
     device = 'cpu'
     results = yolo_model(cv2.imread('bus.jpg'))
-
 
     cnt = 0  # 开始处理的帧数
     frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))  # 待处理的总帧数
@@ -52,7 +63,6 @@ def run_video(video_path, save_path):
 
     ######################################################################################################
     result = {"result": {"category": 0, "duration": 6000}}
-
 
     ANGLE_THRESHOLD = 35
     EAR_THRESHOLD = 0.2
@@ -67,6 +77,9 @@ def run_video(video_path, save_path):
     max_wandering = 0
     look_around_frame = 0
     result_list = []
+
+    front_face = True
+    last_turning_head = False
 
 
     sensitivity = 0.001
@@ -86,20 +99,14 @@ def run_video(video_path, save_path):
         overlap = 0
         cnt += 1
         ret, frame = cap.read()
-        if cnt % 21 != 0:
+        if cnt % 10 != 0 and cnt != 1:
             continue
         if cnt + 80 > frames:  # 最后三秒不判断了
             break
 
-
-
         print(f'video {cnt}/{frames} {save_path}')  # delete
         # process the image with the yolo and get the person list
         results = yolo_model(frame)
-
-
-
-
 
         # 创建img0的副本
         img1 = frame.copy()
@@ -173,31 +180,36 @@ def run_video(video_path, save_path):
         # 创建 bbox
         bbox = [m1, n1, w, h]
 
-
         # frame = spig_process_frame(frame, bbox)  # TODO: 删除
         if phone_around_face == False:
-            pose, mar, ear = face_analysis(frame, bbox,test=1)  # TODO: 添加功能
+            # 五个指标
+            landmark_entropy, trl_entropy, mar, ear, aar = face_analysis(frame, bbox, get_ratio=True)  # TODO: 添加功能
+            # 指标对应的 threshold
+            threshold = [i[0] for i in expert_3d.judger]
+            landmarks_ts, trl_ts, YAWN_THRESHOLD, EAR_THRESHOLD, aar_ts = threshold
+            if (landmark_entropy > landmarks_ts) :# (trl_entropy > trl_ts) or (aar > aar_ts):
+                is_turning_head = True
+                if last_turning_head is False:
+                    front_face = not front_face
+                last_turning_head = True
 
 
-            is_turning_head = True if np.abs(pose[[0, 2]]).max() > ANGLE_THRESHOLD else False
+            # is_turning_head = True if np.abs(pose[[0, 2]]).max() > ANGLE_THRESHOLD else False
             is_yawning = True if mar > YAWN_THRESHOLD else False
             is_eyes_closed = True if ear < EAR_THRESHOLD else False
+            # print(threshold)
             # is_eyes_closed, is_turning_head, is_yawning = face_analysis(frame, bbox) # TODO: 添加功能
-        # is_eyes_closed, is_turning_head, is_yawning = False, False, False
+            # is_eyes_closed, is_turning_head, is_yawning = False, False, False
 
-
-
-        if is_eyes_closed: #1
-            print(ear)
-            frame_result = 1
+        if is_eyes_closed:
             eyes_closed_frame += 1
             if eyes_closed_frame > max_eyes:
                 max_eyes = eyes_closed_frame
         else:
             eyes_closed_frame = 0
 
-        if is_turning_head: #4
-            frame_result = 4
+        # if is_turning_head:
+        if front_face == False:
             look_around_frame += 1
             if look_around_frame > max_wandering:
                 max_wandering = look_around_frame
@@ -208,7 +220,7 @@ def run_video(video_path, save_path):
             print(mar)
             frame_result = 2
             mouth_open_frame += 1
-            eyes_closed_frame = 0    #有打哈欠则把闭眼和转头置零
+            eyes_closed_frame = 0  # 有打哈欠则把闭眼和转头置零
             look_around_frame = 0
             if mouth_open_frame > max_mouth:
                 max_mouth = mouth_open_frame
@@ -221,9 +233,10 @@ def run_video(video_path, save_path):
             use_phone_frame += 1
             mouth_open_frame = 0
             look_around_frame = 0
-            eyes_closed_frame = 0  #有手机则把其他都置零
+            eyes_closed_frame = 0  # 有手机则把其他都置零
             if use_phone_frame > max_phone:
                 max_phone = use_phone_frame
+
         else:
             use_phone_frame = 0
 
@@ -233,19 +246,19 @@ def run_video(video_path, save_path):
             # vid_writer.write(im0)
         result_list.append(frame_result)
 
-        if max_phone >= 4:
+        if max_phone >= 7:
             result['result']['category'] = 3
             break
 
-        elif max_wandering >= 4:
+        elif max_wandering >= 9:
             result['result']['category'] = 4
             break
 
-        elif max_mouth >= 4:
+        elif max_mouth >= 7:
             result['result']['category'] = 2
             break
 
-        elif max_eyes >= 4:
+        elif max_eyes >= 7:
             result['result']['category'] = 1
             break
 
@@ -254,11 +267,9 @@ def run_video(video_path, save_path):
 
     cap.release()
 
-
     result['result']['duration'] = duration
 
     return result
-
 
 def main():
     video_dir = r'F:\ccp1\three'
