@@ -5,12 +5,26 @@ from grabscreen import grab_screen
 import torch
 import numpy as np
 
+
 yolo_model = YOLO('best.pt')
 device = 'cpu'
 half = device != 'cpu'
 # from utils.augmentations import letterbox
 import time
-from submit.toolkits.utils import face_analysis
+# from submit.toolkits.utils import face_analysis
+# from ultralytics import YOLO
+from submit.toolkits.analysis import face_analysis
+from submit.toolkits.inference import spiga_frame_inference
+from submit.toolkits.arithmetic_3d import Expert_3D
+import cv2
+import os
+
+import numpy as np
+from datetime import datetime
+import time
+import json
+
+expert_3d = Expert_3D()
 
 def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleFill=False, scaleup=True, stride=32):
     # Resize and pad image while meeting stride-multiple constraints
@@ -279,7 +293,7 @@ def process_results(results, img0, sensitivity):
 #     return img1
 
 
-def run_video(video_path,mode):
+def run_video(video_path,save_path,mode,save_mode = 0):
 
     overlap = None
     cap = cv2.VideoCapture(video_path)
@@ -311,15 +325,18 @@ def run_video(video_path,mode):
     sensitivity = 0.001
 
     now = time.time()  # 读取视频与加载模型的时间不被计时（？）
+    if mode == 1:
+        vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
 
-    while cap.isOpened():
+    while cnt < frames -1:
         phone_around_face = False
         overlap = 0
         if mode == 1:
             cnt += 1
-            if cnt % 10 != 0:
-                continue
             ret, frame = cap.read()
+            if cnt % 21 != 0:
+                continue
+
         if mode == 0:
             img, frame = input_module()
 
@@ -330,6 +347,7 @@ def run_video(video_path,mode):
 
         # 创建img0的副本
         img1 = frame.copy()
+        print(f'video {cnt}/{frames} {save_path}')
 
         # 获取图像的宽度
         img_height = frame.shape[0]
@@ -412,17 +430,29 @@ def run_video(video_path,mode):
 
         pose, mar, ear = 0, 0,0
 
+        landmark_entropy, trl_entropy, mar, ear, aar = face_analysis(frame, bbox, get_ratio=True)  # TODO: 添加功能
+        # 指标对应的 threshold
+        threshold = [i[0] for i in expert_3d.judger]
+        landmarks_ts, trl_ts, YAWN_THRESHOLD, EAR_THRESHOLD, aar_ts = threshold
+        # if (landmark_entropy > landmarks_ts) or (trl_entropy > trl_ts) or (aar > aar_ts):
+        #     is_turning_head = True
+        # else:
+        #     is_turning_head = False
+        #
+        # # is_turning_head = True if np.abs(pose[[0, 2]]).max() > ANGLE_THRESHOLD else False
+        # is_yawning = True if mar > YAWN_THRESHOLD else False
+        # is_eyes_closed = True if ear < EAR_THRESHOLD else False
 
-
-        pose, mar, ear = face_analysis(frame, bbox, test=2)
-        np.abs(pose[[0, 2]]).max()
+        # pose, mar, ear = face_analysis(frame, bbox, test=2)
+        # np.abs(pose[[0, 2]]).max()
         mar > YAWN_THRESHOLD
         ear < EAR_THRESHOLD
 
         # frame = spig_process_frame(frame, bbox)
         # cv2.putText(frame, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-        cv2.putText(frame, f"Pose max: {np.abs(pose[[0, 2]]).max():.2f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-        cv2.putText(frame, f"Yaw: {np.abs(pose[0]):.2f}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6,(0, 255, 0), 2)
+        #
+        # cv2.putText(frame, f"Pose max: {np.abs(pose[[0, 2]]).max():.2f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        # cv2.putText(frame, f"Yaw: {np.abs(pose[0]):.2f}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6,(0, 255, 0), 2)
         if         mar > YAWN_THRESHOLD :
             cv2.putText(frame, f"MAR: {mar}", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
         else:
@@ -432,22 +462,46 @@ def run_video(video_path,mode):
         else:
             cv2.putText(frame, f"EAR: {ear}", (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
+        if landmark_entropy > landmarks_ts:
+            cv2.putText(frame, f"landmark_entropy: {landmark_entropy}", (10, 180), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+        else:
+            cv2.putText(frame, f"landmark_entropy: {landmark_entropy}", (10, 180), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+        if trl_entropy > trl_ts:
+            cv2.putText(frame, f"trl_entropy: {trl_entropy}", (10, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+        else:
+            cv2.putText(frame, f"trl_entropy: {trl_entropy}", (10, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
             # if overlap:
             cv2.putText(frame, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
         # continue_loop = output_module(frame)
         res_plotted = results[0].plot()
-        continue_loop = output_module(res_plotted)
+        if mode == 0:
+            continue_loop = output_module(res_plotted)
 
-        # continue_loop = output_module(img1)
-        if not continue_loop:
-            break
+            # continue_loop = output_module(img1)
+            if not continue_loop:
+                break
+
+        else:
+
+
+            vid_writer.write(res_plotted)
+            print(f'video {cnt}/{frames} {save_path}')
+            if save_mode == 1:
+                cv2.imwrite(os.path.join(save_path, f'frame_{cnt}.jpg'), res_plotted)
+    if mode == 1:
+        vid_writer.release()
+
 
 
 
 if __name__ == '__main__':
     import os
-    video_path = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\vedio\day_man_001_30_2.mp4'
+    # video_path = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\vedio\night_man_001_40_3.mp4'
+    video_path = r'F:\ccp1\la\test\night_woman_005_41_7.mp4'
+    save_path = r'F:\ccp1\la\test'
     os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
     # yolo_detection()
     # yolo_spig_cap_processing()
-    run_video(video_path,0)
+    run_video(video_path,save_path,1,save_mode=1)

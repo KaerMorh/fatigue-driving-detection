@@ -1,11 +1,19 @@
 import json
 
-path = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output\three1.json'
+path = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 # 读取日志文件
 import json
-
-def check_video_logs(path):
+import glob
+import os
+def check_video_logs(path,mode = 0):
     # 读取log文件
+
+    if mode == 1:
+        all_files = [file for file in glob.glob(os.path.join(path, '*.json'))]
+        all_files.sort(key=os.path.getmtime)
+        path = all_files[-1]  # use the latest file
+
+
     with open(path) as json_file:
         data = json.load(json_file)
 
@@ -29,9 +37,13 @@ def check_video_logs(path):
             incorrect += 1
             incorrect_video_names.append(video_name.join(('',str(category))))
 
+        elif (category_num == 41 and category != 0) or (category_num == 40 and category != 4) :
+            incorrect += 1
+            incorrect_video_names.append(video_name.join(('',str(category))))
+
         else:
             correct += 1
-
+    print(f"file:{path}")
     print(f"正确的个数: {correct}")
     print(f"错误的个数: {incorrect}")
     if incorrect > 0:
@@ -40,6 +52,6 @@ def check_video_logs(path):
             print(name)
 
 # 运行函数
-check_video_logs(path)
+check_video_logs(path,1)
 
 # call the function with your json file
