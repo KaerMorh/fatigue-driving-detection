@@ -86,7 +86,7 @@ def run_video(video_path, save_path):
         overlap = 0
         cnt += 1
         ret, frame = cap.read()
-        if cnt % 15 != 0:
+        if cnt % 21 != 0:
             continue
         if cnt + 80 > frames:  # 最后三秒不判断了
             break
@@ -233,19 +233,19 @@ def run_video(video_path, save_path):
             # vid_writer.write(im0)
         result_list.append(frame_result)
 
-        if max_phone >= 5:
+        if max_phone >= 4:
             result['result']['category'] = 3
             break
 
-        elif max_wandering >= 6:
+        elif max_wandering >= 4:
             result['result']['category'] = 4
             break
 
-        elif max_mouth >= 5:
+        elif max_mouth >= 4:
             result['result']['category'] = 2
             break
 
-        elif max_eyes >= 5:
+        elif max_eyes >= 4:
             result['result']['category'] = 1
             break
 
@@ -261,7 +261,7 @@ def run_video(video_path, save_path):
 
 
 def main():
-    video_dir = r'F:\ccp1\three\an'
+    video_dir = r'F:\ccp1\three'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
     video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]
