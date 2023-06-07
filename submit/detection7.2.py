@@ -66,7 +66,7 @@ def run_video(video_path, save_path):
     result = {"result": {"category": 0, "duration": 6000}}
 
     ANGLE_THRESHOLD = 35
-    EAR_THRESHOLD = 0.2
+    EAR_THRESHOLD = 0.18
     YAWN_THRESHOLD = 0.4
 
     eyes_closed_frame = 0
@@ -85,6 +85,8 @@ def run_video(video_path, save_path):
 
 
     sensitivity = 0.001
+    inactivations = [28,52]
+
 
     now = time.time()  # 读取视频与加载模型的时间不被计时（？）
 
@@ -103,7 +105,7 @@ def run_video(video_path, save_path):
 
         cnt += 1
         ret, frame = cap.read()
-        if cnt % 21 != 0 and cnt != 1:  #帧数
+        if cnt % 21 != 0 and not(cnt in inactivations):  #帧数
             continue
         if cnt + 80 > frames:  # 最后三秒不判断了
             break
@@ -189,7 +191,7 @@ def run_video(video_path, save_path):
         if phone_around_face == False:
             # 五个指标
             landmark_entropy, trl_entropy, mar, ear, aar = face_analysis(frame, bbox, get_ratio=True)  # TODO: 添加功能
-        ################################################
+        ################################################  转头的yolo判断
             side_results = side_model(frame)
             side_boxes = side_results[0].boxes
 
@@ -210,58 +212,75 @@ def run_video(video_path, save_path):
                         rightmost_box = box
                         rightmost_cls = cls
 
-            if rightmost_cls != 0 or  rightmost_box is None:
+            if rightmost_cls != 0 or rightmost_box is None:
                 is_turning_head = True
             else:
                 is_turning_head = False
+
+            is_moving = True if landmark_entropy > 50 else False
 ################################################################################
             is_yawning = True if mar > YAWN_THRESHOLD else False
             is_eyes_closed = True if ear < EAR_THRESHOLD else False
 
+        if not (cnt in inactivations):
+            if is_eyes_closed:
+                eyes_closed_frame += 1
+                frame_result = 1
+            else:
+                eyes_closed_frame = 0
 
-        if is_eyes_closed:
-            eyes_closed_frame += 1
-            if eyes_closed_frame > max_eyes:
-                max_eyes = eyes_closed_frame
+
+            if is_yawning: #2
+                print(mar)
+                frame_result = 2
+                mouth_open_frame += 1  #帧数
+                eyes_closed_frame = 0  # 有打哈欠则把闭眼和转头置零
+                # look_around_frame = 0
+                if mouth_open_frame > max_mouth:
+                    max_mouth = mouth_open_frame
+            else:
+                mouth_open_frame = 0
+
+            # if is_turning_head:
+            if is_moving:
+                eyes_closed_frame = 0
+            if is_turning_head:
+                frame_result = 3
+                look_around_frame += 1  #帧数
+                mouth_open_frame = 0
+                eyes_closed_frame = 0
+                if look_around_frame > max_wandering:
+                    max_wandering = look_around_frame
+
+            else:
+                look_around_frame = 0
+
+            if phone_around_face: #3
+                print(overlap)
+                frame_result =3
+                use_phone_frame += 1
+                mouth_open_frame = 0
+                look_around_frame = 0
+                eyes_closed_frame = 0  # 有手机则把其他都置零
+                front_face = True
+                if use_phone_frame > max_phone:
+                    max_phone = use_phone_frame
+
+            else:
+                use_phone_frame = 0
+
         else:
-            eyes_closed_frame = 0
-
-
-        if is_yawning: #2
-            print(mar)
-            frame_result = 2
-            mouth_open_frame += 1  #帧数
-            eyes_closed_frame = 0  # 有打哈欠则把闭眼和转头置零
-            # look_around_frame = 0
-            if mouth_open_frame > max_mouth:
-                max_mouth = mouth_open_frame
-        else:
-            mouth_open_frame = 0
-
-        # if is_turning_head:
-        if is_turning_head:
-            look_around_frame += 1  #帧数
-            mouth_open_frame = 0
-            eyes_closed_frame = 0
-            if look_around_frame > max_wandering:
-                max_wandering = look_around_frame
-
-        else:
-            look_around_frame = 0
-
-        if phone_around_face: #3
-            print(overlap)
-            frame_result =3
-            use_phone_frame += 1
-            mouth_open_frame = 0
-            look_around_frame = 0
-            eyes_closed_frame = 0  # 有手机则把其他都置零
-            front_face = True
-            if use_phone_frame > max_phone:
-                max_phone = use_phone_frame
-
-        else:
-            use_phone_frame = 0
+            if phone_around_face: #3
+                mouth_open_frame = 0
+                look_around_frame = 0
+                eyes_closed_frame = 0
+            if is_turning_head:
+                mouth_open_frame = 0
+                eyes_closed_frame = 0
+            if not is_eyes_closed:
+                eyes_closed_frame = 0
+            if not is_yawning:
+                mouth_open_frame = 0
 
             ###################################################
             # im0 = display_results(img0, det, names,is_eyes_closed, is_turning_head, is_yawning)
@@ -269,19 +288,19 @@ def run_video(video_path, save_path):
             # vid_writer.write(im0)
         result_list.append(frame_result)
 
-        if max_phone >= 4:  #帧数
+        if use_phone_frame >= 4:  #帧数
             result['result']['category'] = 3
             break
 
-        elif max_wandering >= 4:  #帧数
+        elif look_around_frame >= 4:  #帧数
             result['result']['category'] = 4
             break
 
-        elif max_mouth >= 4:  #帧数
+        elif mouth_open_frame >= 4:  #帧数
             result['result']['category'] = 2
             break
 
-        elif max_eyes >= 4:  #帧数
+        elif eyes_closed_frame >= 4:  #帧数
             result['result']['category'] = 1
             break
 
@@ -295,7 +314,7 @@ def run_video(video_path, save_path):
     return result
 
 def main():
-    video_dir = r'F:\ChallengeCup\an'
+    video_dir = r'F:\ccp1\close'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
     video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]
@@ -310,16 +329,21 @@ def main():
         save_path = os.path.join(save_dir, video_file)
         print(video_file)
 
-        result = run_video(video_path, save_path)
-        json_save_path = save_path.rsplit('.', 1)[0] + '.json'
+        try:
+            result = run_video(video_path, save_path)
+            json_save_path = save_path.rsplit('.', 1)[0] + '.json'
 
-        with open(json_save_path, 'w') as json_file:
-            json.dump(result, json_file)
+            with open(json_save_path, 'w') as json_file:
+                json.dump(result, json_file)
 
-        # Update the log and write it to the log file
-        log[video_file] = result
-        with open(log_file, 'w') as log_json:
-            json.dump(log, log_json)
+            # Update the log and write it to the log file
+            log[video_file] = result
+            with open(log_file, 'w') as log_json:
+                json.dump(log, log_json)
+
+
+        except ValueError as error:
+            print(error)
 
 
 if __name__ == '__main__':
