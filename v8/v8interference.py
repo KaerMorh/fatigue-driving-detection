@@ -7,6 +7,7 @@ import numpy as np
 
 
 yolo_model = YOLO('best.pt')
+side_model = YOLO(r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\submit\side.pt')
 device = 'cpu'
 half = device != 'cpu'
 # from utils.augmentations import letterbox
@@ -334,7 +335,7 @@ def run_video(video_path,save_path,mode,save_mode = 0):
         if mode == 1:
             cnt += 1
             ret, frame = cap.read()
-            if cnt % 21 != 0:
+            if cnt % 21 != 0 and cnt != 1:
                 continue
 
         if mode == 0:
@@ -342,6 +343,7 @@ def run_video(video_path,save_path,mode,save_mode = 0):
 
         # process the image with the yolo and get the person list
         results = yolo_model(frame)
+        side_results = side_model(frame)
 
         # img1,bbox = process_results(results, frame, sensitivity)
 
@@ -429,22 +431,11 @@ def run_video(video_path,save_path,mode,save_mode = 0):
         YAWN_THRESHOLD = 0.4
 
         pose, mar, ear = 0, 0,0
-
+        landmark_entropy , trl_entropy,aar = 0,0,0
         landmark_entropy, trl_entropy, mar, ear, aar = face_analysis(frame, bbox, get_ratio=True)  # TODO: 添加功能
         # 指标对应的 threshold
         threshold = [i[0] for i in expert_3d.judger]
         landmarks_ts, trl_ts, YAWN_THRESHOLD, EAR_THRESHOLD, aar_ts = threshold
-        # if (landmark_entropy > landmarks_ts) or (trl_entropy > trl_ts) or (aar > aar_ts):
-        #     is_turning_head = True
-        # else:
-        #     is_turning_head = False
-        #
-        # # is_turning_head = True if np.abs(pose[[0, 2]]).max() > ANGLE_THRESHOLD else False
-        # is_yawning = True if mar > YAWN_THRESHOLD else False
-        # is_eyes_closed = True if ear < EAR_THRESHOLD else False
-
-        # pose, mar, ear = face_analysis(frame, bbox, test=2)
-        # np.abs(pose[[0, 2]]).max()
         mar > YAWN_THRESHOLD
         ear < EAR_THRESHOLD
 
@@ -453,6 +444,7 @@ def run_video(video_path,save_path,mode,save_mode = 0):
         #
         # cv2.putText(frame, f"Pose max: {np.abs(pose[[0, 2]]).max():.2f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
         # cv2.putText(frame, f"Yaw: {np.abs(pose[0]):.2f}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6,(0, 255, 0), 2)
+        cv2.putText(frame, f"AAR: {aar:.2f}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
         if         mar > YAWN_THRESHOLD :
             cv2.putText(frame, f"MAR: {mar}", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
         else:
@@ -475,7 +467,7 @@ def run_video(video_path,save_path,mode,save_mode = 0):
             # if overlap:
             cv2.putText(frame, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
         # continue_loop = output_module(frame)
-        res_plotted = results[0].plot()
+        res_plotted = side_results[0].plot()
         if mode == 0:
             continue_loop = output_module(res_plotted)
 
@@ -486,22 +478,55 @@ def run_video(video_path,save_path,mode,save_mode = 0):
         else:
 
 
-            vid_writer.write(res_plotted)
+
             print(f'video {cnt}/{frames} {save_path}')
             if save_mode == 1:
                 cv2.imwrite(os.path.join(save_path, f'frame_{cnt}.jpg'), res_plotted)
+            else:
+                vid_writer.write(res_plotted)
     if mode == 1:
         vid_writer.release()
 
 
 
+import os
+import shutil
+
+def process_videos(file_list, video_path, output_path):
+    with open(file_list, 'r') as file:
+        videos = file.read().splitlines()
+
+    # Create a check directory under output path
+    check_path = os.path.join(output_path, 'check')
+    if not os.path.exists(check_path):
+        os.makedirs(check_path)
+
+    for video in videos:
+        current_video_path = os.path.join(video_path, video)
+        current_output_path = os.path.join(output_path, os.path.splitext(video)[0])
+
+        # Create output directory if it does not exist
+        if not os.path.exists(current_output_path):
+            os.makedirs(current_output_path)
+
+        # Copy the video to the check directory
+        shutil.copy(current_video_path, check_path)
+
+        run_video(current_video_path, current_output_path, mode=1, save_mode=1)
+
 
 if __name__ == '__main__':
-    import os
-    # video_path = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\vedio\night_man_001_40_3.mp4'
-    video_path = r'F:\ccp1\la\test\night_woman_005_41_7.mp4'
-    save_path = r'F:\ccp1\la\test'
-    os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-    # yolo_detection()
-    # yolo_spig_cap_processing()
-    run_video(video_path,save_path,1,save_mode=1)
+    # import os
+    # # video_path = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\vedio\night_man_001_40_3.mp4'
+    # video_path = r'F:\ccp1\la\test\night_woman_005_41_7.mp4'
+    # save_path = r'F:\ccp1\la\test'
+    # os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+    # # yolo_detection()
+    # # yolo_spig_cap_processing()
+    # run_video(video_path,save_path,0,save_mode=0)
+    file_list = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\file_list.txt'
+    video_path = r'F:\ChallengeCup'
+    output_path = r'F:\ccp1\interference'
+
+    process_videos(file_list, video_path, output_path)
+
