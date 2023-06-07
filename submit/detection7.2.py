@@ -217,7 +217,7 @@ def run_video(video_path, save_path):
             else:
                 is_turning_head = False
 
-            is_moving = True if landmark_entropy > 50 else False
+            # is_moving = True if landmark_entropy > 50 else False
 ################################################################################
             is_yawning = True if mar > YAWN_THRESHOLD else False
             is_eyes_closed = True if ear < EAR_THRESHOLD else False
