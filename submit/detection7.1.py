@@ -80,6 +80,7 @@ def run_video(video_path, save_path):
 
     front_face = True
     last_turning_head = False
+    turning_num = 0
 
 
     sensitivity = 0.001
@@ -96,10 +97,12 @@ def run_video(video_path, save_path):
         is_yawning = False
         frame_result = 0
 
+        landmark_entropy, trl_entropy, mar, ear, aar = 0,0,0,888,0
         overlap = 0
+
         cnt += 1
         ret, frame = cap.read()
-        if cnt % 10 != 0 and cnt != 1:
+        if cnt % 18 != 0 and cnt != 1:  #帧数
             continue
         if cnt + 80 > frames:  # 最后三秒不判断了
             break
@@ -188,15 +191,25 @@ def run_video(video_path, save_path):
             threshold = [i[0] for i in expert_3d.judger]
             landmarks_ts, trl_ts, YAWN_THRESHOLD, EAR_THRESHOLD, aar_ts = threshold
             if (landmark_entropy > landmarks_ts) :# (trl_entropy > trl_ts) or (aar > aar_ts):
-                is_turning_head = True
+                '''
+                关键点突变发生时，每次有始有终的突变会改变一次正/侧脸的状态。但连续三帧（2s）的突变就判断为假动作，直接将连续数与头状态归零。
+                '''
+                turning_num += 1
+
                 if last_turning_head is False:
                     front_face = not front_face
                 last_turning_head = True
+                if turning_num >= 4:   #帧数
+                    front_face = True
+                    look_around_frame = 0
+            else:
+                turning_num = 0
 
 
             # is_turning_head = True if np.abs(pose[[0, 2]]).max() > ANGLE_THRESHOLD else False
             is_yawning = True if mar > YAWN_THRESHOLD else False
             is_eyes_closed = True if ear < EAR_THRESHOLD else False
+            is_turning_head = not front_face
             # print(threshold)
             # is_eyes_closed, is_turning_head, is_yawning = face_analysis(frame, bbox) # TODO: 添加功能
             # is_eyes_closed, is_turning_head, is_yawning = False, False, False
@@ -208,24 +221,28 @@ def run_video(video_path, save_path):
         else:
             eyes_closed_frame = 0
 
-        # if is_turning_head:
-        if front_face == False:
-            look_around_frame += 1
-            if look_around_frame > max_wandering:
-                max_wandering = look_around_frame
-        else:
-            look_around_frame = 0
+
 
         if is_yawning: #2
             print(mar)
             frame_result = 2
-            mouth_open_frame += 1
+            mouth_open_frame += 1  #帧数
             eyes_closed_frame = 0  # 有打哈欠则把闭眼和转头置零
-            look_around_frame = 0
+            # look_around_frame = 0
             if mouth_open_frame > max_mouth:
                 max_mouth = mouth_open_frame
         else:
             mouth_open_frame = 0
+
+        # if is_turning_head:
+        if is_turning_head:
+            look_around_frame += 1  #帧数
+            mouth_open_frame = 0
+            if look_around_frame > max_wandering:
+                max_wandering = look_around_frame
+
+        else:
+            look_around_frame = 0
 
         if phone_around_face: #3
             print(overlap)
@@ -234,6 +251,7 @@ def run_video(video_path, save_path):
             mouth_open_frame = 0
             look_around_frame = 0
             eyes_closed_frame = 0  # 有手机则把其他都置零
+            front_face = True
             if use_phone_frame > max_phone:
                 max_phone = use_phone_frame
 
@@ -246,19 +264,19 @@ def run_video(video_path, save_path):
             # vid_writer.write(im0)
         result_list.append(frame_result)
 
-        if max_phone >= 7:
+        if max_phone >= 4:  #帧数
             result['result']['category'] = 3
             break
 
-        elif max_wandering >= 9:
+        elif max_wandering >= 4:  #帧数
             result['result']['category'] = 4
             break
 
-        elif max_mouth >= 7:
+        elif max_mouth >= 4:  #帧数
             result['result']['category'] = 2
             break
 
-        elif max_eyes >= 7:
+        elif max_eyes >= 4:  #帧数
             result['result']['category'] = 1
             break
 
@@ -272,7 +290,7 @@ def run_video(video_path, save_path):
     return result
 
 def main():
-    video_dir = r'F:\ccp1\three'
+    video_dir = r'F:\ccp1\la'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
     video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]

@@ -86,7 +86,7 @@ def run_video(video_path, save_path):
         overlap = 0
         cnt += 1
         ret, frame = cap.read()
-        if cnt % 21 != 0:
+        if cnt % 21 != 0 and cnt != 1:
             continue
         if cnt + 80 > frames:  # 最后三秒不判断了
             break

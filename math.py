@@ -10,4 +10,4 @@ def sigmoid(x):
     # Calculate the sigmoid of x
     return 1 / (1 + math.exp(-x))
 
-print(sigmoid(0.3))
+print(sigmoid(vtime/runtime))
