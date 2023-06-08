@@ -152,6 +152,7 @@ def run_video(video_path, save_path):
                 if rightmost_box is None or box[0] > rightmost_box[0]:
                     rightmost_box = box
 
+
         # 如果没有找到有效的检测框，返回img1为img0的右3/5区域
         if rightmost_box is None:
             is_turning_head = True
@@ -165,10 +166,9 @@ def run_video(video_path, save_path):
         # 否则，返回img1仅拥有最靠右的框内的图片
         else:
             x1, y1, x2, y2 = rightmost_box
-            x1 = max(0, int(x1 - 0.1 * (x2 - x1)))
-            y1 = max(0, int(y1 - 0.1 * (y2 - y1)))
-            x2 = min(img_width, int(x2 + 0.1 * (x2 - x1)))
-            y2 = min(img_width, int(y2 + 0.1 * (y2 - y1)))
+            #将图片的增大百分之20
+            dw, dh = int(0.1 * (x2 - x1)), int(0.1 * (y2 - y1))
+            x1, y1, x2, y2 = max(0, x1 - dw), max(0, y1 - dh), min(w, x2 + dw), min(h, y2 + dh)
             # img1 = img1[y1:y2, x1:x2]
             m1, n1, m2, n2 = x1, y1, x2, y2
 
@@ -210,7 +210,7 @@ def run_video(video_path, save_path):
 
             # 遍历所有的边界框
             for box, cls, conf in zip(side_boxes.xyxy, side_classes, side_confidences):
-                if box[0] > img_width * 1 / 3:
+                if box[0] > img_width * 4/9:
                     if rightmost_box is None or box[0] > rightmost_box[0]:
                         rightmost_box = box
                         rightmost_cls = cls
@@ -225,7 +225,7 @@ def run_video(video_path, save_path):
             is_yawning = True if mar > YAWN_THRESHOLD else False
             is_eyes_closed = True if ear < EAR_THRESHOLD else False
 
-        if not (cnt in inactivations):
+        if not (cnt in inactivations): #如果不在不活跃的帧数里
             if is_eyes_closed:
                 eyes_closed_frame += 1
                 frame_result = 1
