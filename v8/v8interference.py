@@ -14,9 +14,8 @@ half = device != 'cpu'
 import time
 # from submit.toolkits.utils import face_analysis
 # from ultralytics import YOLO
-from submit.toolkits.analysis import face_analysis
-from submit.toolkits.inference import spiga_frame_inference
-from submit.toolkits.arithmetic_3d import Expert_3D
+from submit.toolkits.new_analysis import face_analysis
+
 import cv2
 import os
 
@@ -25,7 +24,7 @@ from datetime import datetime
 import time
 import json
 
-expert_3d = Expert_3D()
+
 
 def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleFill=False, scaleup=True, stride=32):
     # Resize and pad image while meeting stride-multiple constraints
@@ -322,6 +321,7 @@ def run_video(video_path,save_path,mode,save_mode = 0):
     max_mouth = 0
     max_wandering = 0
     look_around_frame = 0
+    landmarks_mem = []
 
     sensitivity = 0.001
 
@@ -430,12 +430,12 @@ def run_video(video_path,save_path,mode,save_mode = 0):
         EAR_THRESHOLD = 0.2
         YAWN_THRESHOLD = 0.4
 
-        pose, mar, ear = 0, 0,0
-        landmark_entropy , trl_entropy,aar = 0,0,0
-        landmark_entropy, trl_entropy, mar, ear, aar = face_analysis(frame, bbox, get_ratio=True)  # TODO: 添加功能
+        pose, mar, ear = 0, 0, 0
+        landmark_entropy, trl_entropy, aar = 0,0,0
+        landmark_entropy, mar, ear, aar, L_E, R_E = face_analysis(frame, bbox, landmarks_mem, get_detail=True)  # TODO: 添加功能
         # 指标对应的 threshold
-        threshold = [i[0] for i in expert_3d.judger]
-        landmarks_ts, trl_ts, YAWN_THRESHOLD, EAR_THRESHOLD, aar_ts = threshold
+        # threshold = [i[0] for i in expert_3d.judger]
+        # landmarks_ts, trl_ts, YAWN_THRESHOLD, EAR_THRESHOLD, aar_ts = threshold
         mar > YAWN_THRESHOLD
         ear < EAR_THRESHOLD
 
@@ -445,7 +445,7 @@ def run_video(video_path,save_path,mode,save_mode = 0):
         # cv2.putText(frame, f"Pose max: {np.abs(pose[[0, 2]]).max():.2f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
         # cv2.putText(frame, f"Yaw: {np.abs(pose[0]):.2f}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6,(0, 255, 0), 2)
         cv2.putText(frame, f"AAR: {aar:.2f}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-        if         mar > YAWN_THRESHOLD :
+        if mar > YAWN_THRESHOLD:
             cv2.putText(frame, f"MAR: {mar}", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
         else:
             cv2.putText(frame, f"MAR: {mar}", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
@@ -454,15 +454,20 @@ def run_video(video_path,save_path,mode,save_mode = 0):
         else:
             cv2.putText(frame, f"EAR: {ear}", (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
-        if landmark_entropy > landmarks_ts:
+        if landmark_entropy > 2:
             cv2.putText(frame, f"landmark_entropy: {landmark_entropy}", (10, 180), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
         else:
             cv2.putText(frame, f"landmark_entropy: {landmark_entropy}", (10, 180), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
-        if trl_entropy > trl_ts:
-            cv2.putText(frame, f"trl_entropy: {trl_entropy}", (10, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+        if L_E < EAR_THRESHOLD:
+            cv2.putText(frame, f"L_E:{L_E}", (10, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
         else:
-            cv2.putText(frame, f"trl_entropy: {trl_entropy}", (10, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            cv2.putText(frame, f"L_E:{L_E}", (10, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+        if R_E < EAR_THRESHOLD:
+            cv2.putText(frame, f"R_E:{R_E}", (10, 240), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+        else:
+            cv2.putText(frame, f"R_E:{R_E}", (10, 240), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
             # if overlap:
             cv2.putText(frame, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
@@ -502,6 +507,9 @@ def process_videos(file_list, video_path, output_path):
         os.makedirs(check_path)
 
     for video in videos:
+        # 如果最后三个字符不是mp4，就去掉最后一个字符
+        if video[-3:] != 'mp4':
+            video = video[:-1]
         current_video_path = os.path.join(video_path, video)
         current_output_path = os.path.join(output_path, os.path.splitext(video)[0])
 
@@ -513,6 +521,8 @@ def process_videos(file_list, video_path, output_path):
         shutil.copy(current_video_path, check_path)
 
         run_video(current_video_path, current_output_path, mode=1, save_mode=1)
+
+
 
 
 if __name__ == '__main__':
