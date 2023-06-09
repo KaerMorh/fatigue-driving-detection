@@ -48,8 +48,8 @@ def run_video(video_path, save_path):
     cap = cv2.VideoCapture(video_path)
 
     # 初始化所有模型
-    yolo_model = YOLO('90best.pt')
-    side_model = YOLO('side.pt')
+    yolo_model = YOLO('best.pt')
+    side_model = YOLO('120best.pt')
     device = 'cpu'
     results = yolo_model(cv2.imread('bus.jpg'))
 
@@ -271,7 +271,7 @@ def run_video(video_path, save_path):
 
             if phone_around_face: #3
                 print(overlap)
-                frame_result =3
+                frame_result = 3
                 use_phone_frame += 1
                 mouth_open_frame = 0
                 look_around_frame = 0
@@ -328,7 +328,7 @@ def run_video(video_path, save_path):
     return result
 
 def main():
-    video_dir = r'F:\ccp1\interference\check'
+    video_dir = r'F:\ChallengeCup'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
     video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]

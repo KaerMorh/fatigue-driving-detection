@@ -84,7 +84,7 @@ def run_video(video_path, save_path):
 
 
     sensitivity = 0.001
-    inactivations = [28,52]
+    inactivations = [1,28,52]
     landmarks_mem = []
 
 
@@ -100,15 +100,16 @@ def run_video(video_path, save_path):
         is_eyes_closed = False
         is_turning_head = False
         is_yawning = False
+        is_moving = False
         frame_result = 0
 
         landmark_entropy, trl_entropy, mar, ear, aar = 0,0,0,888,0
-        L_E, R_E = 0,0  # 左右眼睛的状态
+        L_E, R_E = 888,888  # 左右眼睛的状态
         overlap = 0
 
         cnt += 1
         ret, frame = cap.read()
-        if cnt % 21 != 0 and not(cnt in inactivations):  #帧数
+        if cnt % 21 != 0 and cnt != 2 and not(cnt in inactivations):  #帧数
             continue
         if cnt + 80 > frames:  # 最后三秒不判断了
             break
@@ -166,11 +167,18 @@ def run_video(video_path, save_path):
         # 否则，返回img1仅拥有最靠右的框内的图片
         else:
             x1, y1, x2, y2 = rightmost_box
-            #将图片的增大百分之20
-            dw, dh = int(0.1 * (x2 - x1)), int(0.1 * (y2 - y1))
-            x1, y1, x2, y2 = max(0, x1 - dw), max(0, y1 - dh), min(w, x2 + dw), min(h, y2 + dh)
+            x1 = max(0, int(x1 - 0.1 * (x2 - x1)))
+            y1 = max(0, int(y1 - 0.1 * (y2 - y1)))
+            x2 = min(img_width, int(x2 + 0.1 * (x2 - x1)))
+            y2 = min(img_width, int(y2 + 0.1 * (y2 - y1)))
             # img1 = img1[y1:y2, x1:x2]
             m1, n1, m2, n2 = x1, y1, x2, y2
+            # x1, y1, x2, y2 = rightmost_box
+            # #将图片的增大百分之20
+            # dw, dh = int(0.1 * (x2 - x1)), int(0.1 * (y2 - y1))
+            # x1, y1, x2, y2 = max(0, x1 - dw), max(0, y1 - dh), min(w, x2 + dw), min(h, y2 + dh)
+            # # img1 = img1[y1:y2, x1:x2]
+            # m1, n1, m2, n2 = x1, y1, x2, y2
 
             # 计算交集的面积
             if rightmost_phone is not None and rightmost_box is not None:
@@ -223,7 +231,10 @@ def run_video(video_path, save_path):
             is_moving = True if landmark_entropy > 50 else False
 ################################################################################
             is_yawning = True if mar > YAWN_THRESHOLD else False
-            is_eyes_closed = True if ear < EAR_THRESHOLD else False
+            # is_eyes_closed = True if (ear < EAR_THRESHOLD) else False
+            if cnt == 2 and ear < EAR_THRESHOLD: # 第二帧就识别成小眼
+                EAR_THRESHOLD = 0.15
+            is_eyes_closed = True if (L_E < EAR_THRESHOLD or R_E < EAR_THRESHOLD) else False
 
         if not (cnt in inactivations): #如果不在不活跃的帧数里
             if is_eyes_closed:

@@ -13,7 +13,7 @@ def comparision(incorrect_videos, compare_path):
     再生成一个新的列表videos_names，将incorrect_videos中的每一项的末尾数字去掉，存入videos_names中
     从compare_path(一个txt文件，包含如night_man_002_10_1.mp40的列表)读取数据，将每一项的末尾数字存入compare_categories中，
     再生成一个新的列表compare_videos，将compare_path中的每一项的末尾数字去掉，存入compare_videos中
-    将两个名称列表中的名称相同项对应的标签进行比较，如果不同则打印出来
+    将两个名称列表中的名称相同项对应的标签进行比较，如果不同则打印出来(按照标签进行排序)
     如果有compare_videos中的名称不在videos_names中，则将其打印出来（少错误项）
     如果有videos_names中的名称不在compare_videos中，则将其打印出来（新增错误项）
     '''
@@ -87,6 +87,7 @@ def check_video_logs(path,mode = 0, compare_path = None ):
 
     # 遍历所有的日志条目
     for video_name, video_data in data.items():
+        # print(video_name)
         category = video_data['result']['category']
 
 
@@ -149,6 +150,7 @@ def calculate_score(filename):
 
     with open(filename, 'r') as file:
         for line in file:
+
             # 解析文件名
             fields = line.strip().split('_')
             true_class = true_cls(line)

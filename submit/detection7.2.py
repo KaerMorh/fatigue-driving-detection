@@ -217,7 +217,7 @@ def run_video(video_path, save_path):
             else:
                 is_turning_head = False
 
-            # is_moving = True if landmark_entropy > 50 else False
+            is_moving = True if landmark_entropy > 50 else False
 ################################################################################
             is_yawning = True if mar > YAWN_THRESHOLD else False
             is_eyes_closed = True if ear < EAR_THRESHOLD else False
@@ -314,7 +314,7 @@ def run_video(video_path, save_path):
     return result
 
 def main():
-    video_dir = r'F:\ccp1\close'
+    video_dir = r'F:\ccp1\interference\check'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
     video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]

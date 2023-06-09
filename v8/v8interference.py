@@ -298,7 +298,7 @@ def run_video(video_path,save_path,mode,save_mode = 0):
     overlap = None
     cap = cv2.VideoCapture(video_path)
 
-    yolo_model = YOLO('best.pt')
+    yolo_model = YOLO('120best.pt')
     device = 'cpu'
     half = device != 'cpu'
 
@@ -335,7 +335,7 @@ def run_video(video_path,save_path,mode,save_mode = 0):
         if mode == 1:
             cnt += 1
             ret, frame = cap.read()
-            if cnt % 21 != 0 and cnt != 1:
+            if cnt % 21 != 0 and cnt != 2:
                 continue
 
         if mode == 0:
@@ -427,7 +427,7 @@ def run_video(video_path,save_path,mode,save_mode = 0):
 
 
         ANGLE_THRESHOLD = 30
-        EAR_THRESHOLD = 0.2
+        EAR_THRESHOLD = 0.18
         YAWN_THRESHOLD = 0.4
 
         pose, mar, ear = 0, 0, 0
@@ -475,15 +475,11 @@ def run_video(video_path,save_path,mode,save_mode = 0):
         res_plotted = side_results[0].plot()
         if mode == 0:
             continue_loop = output_module(res_plotted)
-
             # continue_loop = output_module(img1)
             if not continue_loop:
                 break
 
         else:
-
-
-
             print(f'video {cnt}/{frames} {save_path}')
             if save_mode == 1:
                 cv2.imwrite(os.path.join(save_path, f'frame_{cnt}.jpg'), res_plotted)

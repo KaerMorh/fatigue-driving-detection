@@ -307,6 +307,21 @@ def main(frame_dir, output_dir,check_dir = None):
             print(f"Error processing {filename}: {e}")
             continue
 
+def save_img(frame, cap, cnt):
+
+    '''
+    调用run_frame函数，处理frame
+    将传入的frame保存到save_path路径下的与cap同名的文件夹中
+    '''
+    save_path = r'F:\ccp1\la\test'
+    frame = run_frame(frame)
+    if not os.path.exists(os.path.join(save_path, cap)):
+        os.makedirs(os.path.join(save_path, cap))
+    cv2.imwrite(os.path.join(save_path, cap, str(cnt) + '.jpg'), frame)
+
+
+
+
 if __name__ == '__main__':
     import os
     video_path = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\vedio\day_man_001_30_2.mp4'
