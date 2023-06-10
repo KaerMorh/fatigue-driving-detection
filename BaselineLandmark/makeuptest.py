@@ -62,7 +62,7 @@ def run_video(video_path, save_path):
     yolo_model = YOLO('best.pt')
     side_model = YOLO('120best.pt')
     device = 'cpu'
-    results = yolo_model(cv2.imread('bus.jpg'))
+    # results = yolo_model(cv2.imread('bus.jpg'))
 
     cnt = 0  # 开始处理的帧数
     frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))  # 待处理的总帧数
@@ -93,7 +93,16 @@ def run_video(video_path, save_path):
     last_turning_head = False
     turning_num = 0
 
+    eyes_model = YOLO('eyev8best.pt')
+    tracker = Tracker(960, 540, threshold=None, max_threads=4, max_faces=4,
+                      discard_after=10, scan_every=3, silent=True, model_type=3,
+                      model_dir=None, no_gaze=False, detection_threshold=0.6,
+                      use_retinaface=0, max_feature_updates=900,
+                      static_model=True, try_hard=False)
 
+    yolo_model = YOLO('best.pt')
+    sensitivity = 0.01
+    side_model = YOLO('120best.pt')
     sensitivity = 0.001
     inactivations = [1,28,52]
     landmarks_mem = []
@@ -124,7 +133,7 @@ def run_video(video_path, save_path):
 
         cnt += 1
         ret, frame = cap.read()
-        if cnt % 21 != 0 and cnt != 2 and not(cnt in inactivations):  #帧数
+        if cnt % 10 != 0 and cnt != 2 and not(cnt in inactivations):  #帧数
             continue
         if cnt + 80 > frames:  # 最后三秒不判断了
             break
@@ -169,9 +178,7 @@ def run_video(video_path, save_path):
                 if rightmost_box is None or box[0] > rightmost_box[0]:
                     rightmost_box = box
 
-        time2 = time.time()
-        print(f'find box time: {time2 - time1}')  # delete
-        total_find_time += time2 - time1
+
 
         # 如果没有找到有效的检测框，返回img1为img0的右3/5区域
         if rightmost_box is None:
@@ -209,7 +216,71 @@ def run_video(video_path, save_path):
                 # 如果IoU大于阈值，打印警告
                 if overlap > sensitivity:
                     phone_around_face = True  ##判断手机
+        faces = tracker.predict(img1)
+        eye_results = eyes_model(img1)
+        standard_pose = [180, 40, 80]
+        lStart = 42
+        lEnd = 48
+        # (rStart, rEnd) = (36, 42)
+        rStart = 36
+        rEnd = 42
+        # (mStart, mEnd) = (49, 66)
+        mStart = 49
+        mEnd = 66
+        EAR_THRESHOLD = 0.1
+        YAWN_THRESHOLD = 0.6
+        face_num = 0
 
+        if len(faces) > 0:
+            face_num = 0
+            max_x = 0
+            for face_num_index, f in enumerate(faces):
+                if max_x <= f.bbox[3]:
+                    face_num = face_num_index
+                    max_x = f.bbox[3]
+                # if face_num != 0:
+                f = faces[face_num]
+                f = copy.copy(f)
+
+                # 检测是否转头
+                if np.abs(standard_pose[0] - f.euler[0]) >= 45 or np.abs(standard_pose[1] - f.euler[1]) >= 45 or \
+                        np.abs(standard_pose[2] - f.euler[2]) >= 45:
+                    is_turning_head = True
+                else:
+                    is_turning_head = False
+
+                # 检测是否闭眼
+                # extract the left and right eye coordinates, then use the
+                # coordinates to compute the eye aspect ratio for both eyes
+                leftEye = f.lms[lStart:lEnd]
+                rightEye = f.lms[rStart:rEnd]
+                L_E = eye_aspect_ratio(leftEye)
+                R_E = eye_aspect_ratio(rightEye)
+                # average the eye aspect ratio together for both eyes
+                ear = (L_E + R_E) / 2.0
+
+                if ear < EAR_THRESHOLD:
+                    is_eyes_closed = True
+                    print(ear)
+                    # print(EYE_AR_THRESH)
+                else:
+                    is_eyes_closed = False
+                # print(ear, eyes_closed_frame)
+
+                # 检测是否张嘴
+                mar = mouth_aspect_ratio(f.lms)
+
+                if mar > YAWN_THRESHOLD:
+                    is_yawning = True
+                print(mar)
+                # print(MOUTH_AR_THRESH)
+                #                         print(len(f.lms), f.euler)
+                # img0 = eye_results[0].plot()
+
+        time2 = time.time()
+        print(f'find box time: {time2 - time1}')  # delete
+        total_find_time += time2 - time1
+        # 五个指标
 #         # 计算边界框的宽度和高度
 #         w = m2 - m1
 #         h = n2 - n1
