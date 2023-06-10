@@ -13,6 +13,29 @@ from ultralytics import YOLO
 from MAR import mouth_aspect_ratio
 
 
+def iou(box1, box2):
+    """Calculate Intersection over Union (IoU) between two bounding boxes"""
+
+    x1, y1, x2, y2 = box1
+    x3, y3, x4, y4 = box2
+
+    # calculate the overlap coordinates
+    xx1, yy1 = max(x1, x3), max(y1, y3)
+    xx2, yy2 = min(x2, x4), min(y2, y4)
+
+    # compute the width and height of the overlap area
+    overlap_width, overlap_height = max(0, xx2 - xx1), max(0, yy2 - yy1)
+    overlap_area = overlap_width * overlap_height
+
+    # compute the area of both bounding boxes
+    box1_area = (x2 - x1) * (y2 - y1)
+    box2_area = (x4 - x3) * (y4 - y3)
+
+    # compute IoU
+    iou = overlap_area / float(box1_area + box2_area - overlap_area)
+    return iou
+
+
 def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleFill=False, scaleup=True, stride=32):
     # Resize and pad image while meeting stride-multiple constraints
     shape = im.shape[:2]  # current shape [height, width]
@@ -80,6 +103,7 @@ def output_module(im0):
     return True
 
 def main():
+    eyes_model = YOLO('eyev8best.pt')
     tracker = Tracker(960, 540, threshold=None, max_threads=4, max_faces=4,
                       discard_after=10, scan_every=3, silent=True, model_type=3,
                       model_dir=None, no_gaze=False, detection_threshold=0.6,
@@ -87,12 +111,92 @@ def main():
                       static_model=True, try_hard=False)
 
     yolo_model = YOLO('best.pt')
+    sensitivity = 0.01
     side_model = YOLO('120best.pt')
 
     while True:
+
         img, img0= input_module()
         frame = img0.copy()
         # frame = frame[:, 600:1920, :]
+        # 获取图像的宽度
+        results = yolo_model(frame)
+        img_height = frame.shape[0]
+
+        img_width = frame.shape[1]
+
+        # 获取所有的边界框
+        boxes = results[0].boxes
+
+        # 获取所有类别
+        classes = boxes.cls
+
+        # 获取所有的置信度
+        confidences = boxes.conf
+
+        # 初始化最靠右的框和最靠右的手机
+        rightmost_box = None
+        rightmost_phone = None
+
+        # 遍历所有的边界框
+        for box, cls, conf in zip(boxes.xyxy, classes, confidences):
+            # 如果类别为1（手机）且在图片的右2/3区域内
+            if cls == 1 and box[0] > img_width * 1 / 3:
+                # 如果还没有找到最靠右的手机或者这个手机更靠右
+                if rightmost_phone is None or box[0] > rightmost_phone[0]:
+                    rightmost_phone = box
+
+            # 如果类别为0（驾驶员）且在图片的右2/3区域内
+            if cls == 0 and box[0] > img_width * 1 / 3:
+                # 如果还没有找到最靠右的框或者这个框更靠右
+                if rightmost_box is None or box[0] > rightmost_box[0]:
+                    rightmost_box = box
+
+        img1 = frame.copy()
+
+        # 如果没有找到有效的检测框，返回img1为img0的右3/5区域
+        if rightmost_box is None:
+            is_turning_head = True
+            img1 = img1
+            m1 = int(img_width * 2 / 5)
+            n1 = 0
+            # 右下角的坐标
+            m2 = img_width
+            n2 = img_height
+
+        # 否则，返回img1仅拥有最靠右的框内的图片
+        else:
+            x1, y1, x2, y2 = rightmost_box
+            x1 = max(0, int(x1 - 0.1 * (x2 - x1)))
+            y1 = max(0, int(y1 - 0.1 * (y2 - y1)))
+            x2 = min(img_width, int(x2 + 0.1 * (x2 - x1)))
+            y2 = min(img_width, int(y2 + 0.1 * (y2 - y1))) # 把框扩大10%
+            # img1 = img1[y1:y2, x1:x2]
+            m1, n1, m2, n2 = x1, y1, x2, y2
+            # x1, y1, x2, y2 = rightmost_box
+            # #将图片的增大百分之20
+            # dw, dh = int(0.1 * (x2 - x1)), int(0.1 * (y2 - y1))
+            # x1, y1, x2, y2 = max(0, x1 - dw), max(0, y1 - dh), min(w, x2 + dw), min(h, y2 + dh)
+            img1 = img1[y1:y2, x1:x2]
+            # m1, n1, m2, n2 = x1, y1, x2, y2
+
+            # 计算交集的面积
+            if rightmost_phone is not None and rightmost_box is not None:
+                # 计算两个框的IoU
+                overlap = iou(rightmost_box, rightmost_phone)
+
+                # cv2.putText(img1, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                print(overlap)
+                # 如果IoU大于阈值，打印警告
+                if overlap > sensitivity:
+                    phone_around_face = True  ##判断手机
+
+        # 计算边界框的宽度和高度
+        w = m2 - m1
+        h = n2 - n1
+
+        # 创建 bbox
+        bbox = [m1, n1, w, h]
 
 
 
@@ -112,6 +216,7 @@ def main():
 
 
         faces = tracker.predict(frame)
+        eye_results = eyes_model(img0)
         if len(faces) > 0:
             face_num = 0
             max_x = 0
@@ -156,7 +261,7 @@ def main():
                 print(mar)
                 # print(MOUTH_AR_THRESH)
                 #                         print(len(f.lms), f.euler)
-
+                img0 = eye_results[0].plot()
                 # cv2.putText(frame, f"AAR: {aar:.2f}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                 if mar > YAWN_THRESHOLD:
                     cv2.putText(img0, f"MAR: {mar}", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
@@ -180,8 +285,11 @@ def main():
 
                     # if overlap:
                     # cv2.putText(frame, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
         if not output_module(img0):
+        # if not output_module(res_plotted):
             break
+
 
     return
 
