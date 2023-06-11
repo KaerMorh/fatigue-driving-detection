@@ -1,4 +1,4 @@
-import torch
+# import torch
 import cv2
 import numpy as np
 import copy
@@ -46,7 +46,7 @@ def run_video(video_path, save_path):
     yolo_model = YOLO('best.pt')
     side_model = YOLO('120best.pt')
     eyes_model = YOLO('eyev8best.pt')
-    tracker = Tracker(960, 540, threshold=None, max_threads=4, max_faces=4,
+    tracker = Tracker(1920, 1080, threshold=None, max_threads=4, max_faces=4,
                       discard_after=10, scan_every=3, silent=True, model_type=3,
                       model_dir=None, no_gaze=False, detection_threshold=0.6,
                       use_retinaface=0, max_feature_updates=900,
@@ -80,7 +80,11 @@ def run_video(video_path, save_path):
     max_wandering = 0
     look_around_frame = 0
     result_list = []
+    result_cnt_list = []
     ear_list = []
+    mar_list = []
+    L_E_list = []
+    R_E_list = []
 
     front_face = True
     last_turning_head = False
@@ -90,6 +94,7 @@ def run_video(video_path, save_path):
     sensitivity = 0.001
     inactivations = [1,28,52]
     landmarks_mem = []
+
 
 
     now = time.time()  # 读取视频与加载模型的时间不被计时（？）
@@ -139,7 +144,7 @@ def run_video(video_path, save_path):
         results = yolo_model(frame)
 
         # 创建img0的副本
-        img1 = frame.copy()
+        img0 = frame.copy()
 
         # 获取图像的宽度
         img_height = frame.shape[0]
@@ -177,7 +182,8 @@ def run_video(video_path, save_path):
         # 如果没有找到有效的检测框，返回img1为img0的右3/5区域
         if rightmost_box is None:
             is_turning_head = True
-            img1 = img1
+            print('no human box found')
+
             m1 = int(img_width * 2 / 5)
             n1 = 0
             # 右下角的坐标
@@ -191,25 +197,20 @@ def run_video(video_path, save_path):
             y1 = max(0, int(y1 - 0.1 * (y2 - y1)))
             x2 = min(img_width, int(x2 + 0.1 * (x2 - x1)))
             y2 = min(img_width, int(y2 + 0.1 * (y2 - y1))) # 把框扩大10%
-            # img1 = img1[y1:y2, x1:x2]
             m1, n1, m2, n2 = x1, y1, x2, y2
-            # x1, y1, x2, y2 = rightmost_box
-            # #将图片的增大百分之20
-            # dw, dh = int(0.1 * (x2 - x1)), int(0.1 * (y2 - y1))
-            # x1, y1, x2, y2 = max(0, x1 - dw), max(0, y1 - dh), min(w, x2 + dw), min(h, y2 + dh)
-            # # img1 = img1[y1:y2, x1:x2]
-            # m1, n1, m2, n2 = x1, y1, x2, y2
+
 
             # 计算交集的面积
             if rightmost_phone is not None and rightmost_box is not None:
                 # 计算两个框的IoU
                 overlap = iou(rightmost_box, rightmost_phone)
-
-                # cv2.putText(img1, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                # if isinstance(overlap, torch.Tensor):
+                #     overlap = overlap.item()
                 print(overlap)
                 # 如果IoU大于阈值，打印警告
                 if overlap > sensitivity:
-                    phone_around_face = True  ##判断手机
+                    phone_around_face = True
+                                        ##判断手机
 
         # 计算边界框的宽度和高度
         w = m2 - m1
@@ -217,20 +218,21 @@ def run_video(video_path, save_path):
 
         # 创建 bbox
         bbox = [m1, n1, w, h]
+        # frame = frame[y1:y2, x1:x2]
+        frame = frame[n1:n2, m1:m2]
 
-        # frame = spig_process_frame(frame, bbox)  # TODO: 删除
         if phone_around_face == False:
             # 五个指标
-            faces = tracker.predict(frame)
+            faces = tracker.predict(img0)
             eye_results = eyes_model(frame)
             if len(faces) > 0:              #关键点检测部分
-                face_num = 0
+                face_num = None
                 max_x = 0
                 for face_num_index, f in enumerate(faces):
                     if max_x <= f.bbox[3]:
                         face_num = face_num_index
                         max_x = f.bbox[3]
-                    # if face_num != 0:
+                if face_num is not None:
                     f = faces[face_num]
                     f = copy.copy(f)
 
@@ -244,6 +246,8 @@ def run_video(video_path, save_path):
                     # 检测是否闭眼
                     # extract the left and right eye coordinates, then use the
                     # coordinates to compute the eye aspect ratio for both eyes
+                    # 检测是否张嘴
+                    mar = mouth_aspect_ratio(f.lms)
                     leftEye = f.lms[lStart:lEnd]
                     rightEye = f.lms[rStart:rEnd]
                     L_E = eye_aspect_ratio(leftEye)
@@ -253,6 +257,7 @@ def run_video(video_path, save_path):
 
 
         ################################################  转头的yolo判断
+            #这个地方需要有两种策略:如果这里传入frame,则不需要进行在画幅右4/9的判断.如果传入的img0则需要判断.
             side_results = side_model(frame)
             side_boxes = side_results[0].boxes
 
@@ -268,10 +273,13 @@ def run_video(video_path, save_path):
 
             # 遍历所有的边界框
             for box, cls, conf in zip(side_boxes.xyxy, side_classes, side_confidences):
-                if box[0] > img_width * 4/9:
-                    if rightmost_box is None or box[0] > rightmost_box[0]:
-                        rightmost_box = box
-                        rightmost_cls = cls
+                # if box[0] > img_width * 4/9:
+                #     if rightmost_box is None or box[0] > rightmost_box[0]:
+                #         rightmost_box = box
+                #         rightmost_cls = cls
+                if rightmost_box is None or box[0] > rightmost_box[0]:
+                    rightmost_box = box
+                    rightmost_cls = cls
 
             if rightmost_cls != 0 or rightmost_box is None:
                 is_turning_head = True
@@ -287,53 +295,53 @@ def run_video(video_path, save_path):
             # is_eyes_closed = True if (L_E < EAR_THRESHOLD or R_E < EAR_THRESHOLD) else False
 
         # if not (cnt in inactivations): #如果不在不活跃的帧数里
-            ear_list.append(ear)
-            if is_eyes_closed:
-                print(ear)
-                eyes_closed_frame += 1
-                frame_result = 1
-            else:
-                eyes_closed_frame = 0
+        ear_list.append(ear)
+        if is_eyes_closed:
+            print(f'ear:{ear}')
+            eyes_closed_frame += 1
+            frame_result = 1
+        else:
+            eyes_closed_frame = 0
 
 
-            if is_yawning: #2
-                print(mar)
-                frame_result = 2
-                mouth_open_frame += 1  #帧数
-                eyes_closed_frame = 0  # 有打哈欠则把闭眼和转头置零
-                # look_around_frame = 0
-                if mouth_open_frame > max_mouth:
-                    max_mouth = mouth_open_frame
-            else:
-                mouth_open_frame = 0
+        if is_yawning: #2
+            print(f'mar:{mar}')
+            frame_result = 2
+            mouth_open_frame += 1  #帧数
+            eyes_closed_frame = 0  # 有打哈欠则把闭眼和转头置零
+            # look_around_frame = 0
+            if mouth_open_frame > max_mouth:
+                max_mouth = mouth_open_frame
+        else:
+            mouth_open_frame = 0
 
-            # if is_turning_head:
-            if is_moving:
-                eyes_closed_frame = 0
-            if is_turning_head:
-                frame_result = 3
-                look_around_frame += 1  #帧数
-                mouth_open_frame = 0
-                eyes_closed_frame = 0
-                if look_around_frame > max_wandering:
-                    max_wandering = look_around_frame
+        # if is_turning_head:
+        if is_moving:
+            eyes_closed_frame = 0
+        if is_turning_head:
+            frame_result = 4
+            look_around_frame += 1  #帧数
+            mouth_open_frame = 0
+            eyes_closed_frame = 0
+            if look_around_frame > max_wandering:
+                max_wandering = look_around_frame
 
-            else:
-                look_around_frame = 0
+        else:
+            look_around_frame = 0
 
-            if phone_around_face: #3
-                print(overlap)
-                frame_result = 3
-                use_phone_frame += 1
-                mouth_open_frame = 0
-                look_around_frame = 0
-                eyes_closed_frame = 0  # 有手机则把其他都置零
-                front_face = True
-                if use_phone_frame > max_phone:
-                    max_phone = use_phone_frame
+        if phone_around_face: #3
+            print(f'overlap:{overlap}')
+            frame_result = 3
+            use_phone_frame += 1
+            mouth_open_frame = 0
+            look_around_frame = 0
+            eyes_closed_frame = 0  # 有手机则把其他都置零
+            front_face = True
+            if use_phone_frame > max_phone:
+                max_phone = use_phone_frame
 
-            else:
-                use_phone_frame = 0
+        else:
+            use_phone_frame = 0
 
         # else:
         #     if phone_around_face: #3
@@ -352,9 +360,16 @@ def run_video(video_path, save_path):
             # im0 = display_results(img0, det, names,is_eyes_closed, is_turning_head, is_yawning)
             # # write video
             # vid_writer.write(im0)
-        result_list.append(frame_result)
+        if not (cnt in inactivations):
+            result_list.append(frame_result)
+            result_cnt_list.append(cnt)
+            ear_list.append(ear)
+            mar_list.append(mar)
+            L_E_list.append(L_E)
+            R_E_list.append(R_E)
 
-        if use_phone_frame >= 8:  #帧数
+
+        if use_phone_frame >= 7:  #帧数
             result['result']['category'] = 3
             break
 
@@ -372,12 +387,18 @@ def run_video(video_path, save_path):
 
     final_time = time.time()
     duration = int(np.round((final_time - now) * 1000))
+    print(f'result_list:{result_list}')
+    print(f'result_cnt_list:{result_cnt_list}')
+    print(f'mar_list:{mar_list}')
+    print(f'ear_list:{ear_list}')
+    print(f'L_E_list:{L_E_list}')
+    print(f'R_E_list:{R_E_list}')
 
     cap.release()
 
     result['result']['duration'] = duration
 
-    return result
+    return result, result_list, result_cnt_list, mar_list, ear_list, L_E_list, R_E_list
 
 
 def main():
@@ -397,7 +418,7 @@ def main():
         print(video_file)
 
         try:
-            result = run_video(video_path, save_path)
+            result, result_list, result_cnt_list, mar_list, ear_list, L_E_list, R_E_list = run_video(video_path, save_path)
             json_save_path = save_path.rsplit('.', 1)[0] + '.json'
 
             with open(json_save_path, 'w') as json_file:

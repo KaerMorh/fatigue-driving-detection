@@ -114,6 +114,19 @@ def main():
     sensitivity = 0.01
     side_model = YOLO('120best.pt')
 
+    standard_pose = [180, 40, 80]
+    lStart = 42
+    lEnd = 48
+    # (rStart, rEnd) = (36, 42)
+    rStart = 36
+    rEnd = 42
+    # (mStart, mEnd) = (49, 66)
+    mStart = 49
+    mEnd = 66
+    EAR_THRESHOLD = 0.1
+    YAWN_THRESHOLD = 0.6
+    face_num = 0
+
     while True:
 
         img, img0= input_module()
@@ -124,7 +137,7 @@ def main():
         img_height = frame.shape[0]
 
         img_width = frame.shape[1]
-
+        x1, y1, x2, y2 = 0, 0, img_width, img_height
         # 获取所有的边界框
         boxes = results[0].boxes
 
@@ -133,7 +146,7 @@ def main():
 
         # 获取所有的置信度
         confidences = boxes.conf
-
+        overlap = None
         # 初始化最靠右的框和最靠右的手机
         rightmost_box = None
         rightmost_phone = None
@@ -186,7 +199,7 @@ def main():
                 overlap = iou(rightmost_box, rightmost_phone)
 
                 # cv2.putText(img1, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                print(overlap)
+                print(f'overlap:{overlap}')
                 # 如果IoU大于阈值，打印警告
                 if overlap > sensitivity:
                     phone_around_face = True  ##判断手机
@@ -198,33 +211,19 @@ def main():
         # 创建 bbox
         bbox = [m1, n1, w, h]
 
-
-
-
-        standard_pose = [180, 40, 80]
-        lStart = 42
-        lEnd = 48
-        # (rStart, rEnd) = (36, 42)
-        rStart = 36
-        rEnd = 42
-        # (mStart, mEnd) = (49, 66)
-        mStart = 49
-        mEnd = 66
-        EAR_THRESHOLD = 0.1
-        YAWN_THRESHOLD = 0.6
-        face_num = 0
+        # img0 = frame[y1:y2, x1:x2]
 
 
         faces = tracker.predict(frame)
         eye_results = eyes_model(img0)
         if len(faces) > 0:
-            face_num = 0
+            face_num = None
             max_x = 0
             for face_num_index, f in enumerate(faces):
                 if max_x <= f.bbox[3]:
                     face_num = face_num_index
                     max_x = f.bbox[3]
-            # if face_num != 0:
+            if face_num is not None:
                 f = faces[face_num]
                 f = copy.copy(f)
 
@@ -247,7 +246,7 @@ def main():
 
                 if ear < EAR_THRESHOLD:
                     is_eyes_closed = True
-                    print(ear)
+                    print(f'ear:{ear}')
                     # print(EYE_AR_THRESH)
                 else:
                     is_eyes_closed = False
@@ -258,10 +257,10 @@ def main():
 
                 if mar > YAWN_THRESHOLD:
                     is_yawning = True
-                print(mar)
+                    print(f'mar:{mar}')
                 # print(MOUTH_AR_THRESH)
                 #                         print(len(f.lms), f.euler)
-                img0 = eye_results[0].plot()
+                # img0 = eye_results[0].plot()
                 # cv2.putText(frame, f"AAR: {aar:.2f}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                 if mar > YAWN_THRESHOLD:
                     cv2.putText(img0, f"MAR: {mar}", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
@@ -283,8 +282,8 @@ def main():
                 else:
                     cv2.putText(img0, f"R_E:{R_E}", (10, 240), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
-                    # if overlap:
-                    # cv2.putText(frame, f"IoU: {overlap:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                if overlap:   # if overlap:
+                    cv2.putText(img0, f"IoU: {overlap:.2f}", (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
         if not output_module(img0):
         # if not output_module(res_plotted):
