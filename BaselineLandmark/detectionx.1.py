@@ -61,10 +61,11 @@ def run_video(video_path, save_path):
 
     # 获取当前视频的帧率与宽高，设置同样的格式，以确保相同帧率与宽高的视频输出
     fps = cap.get(cv2.CAP_PROP_FPS)
-    tickness = int(fps / 3) #每秒测几
+    tickness = int(fps / 2) #每秒测几
     fps_3s = int(fps / tickness) * 3#
-    alpha = 0.78 #9帧中取7帧
-    real_fps_3s = int(fps_3s * alpha) #
+    alpha = 0.89#9帧中取7帧
+    #
+    real_fps_3s = int(fps_3s * alpha)
 
 
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -92,6 +93,9 @@ def run_video(video_path, save_path):
     L_E_list = []
     R_E_list = []
     iou_list = []
+    side_list = []
+    yolo1_list = []
+    yolo2_list = []
 
     inactivations = [1,28,52]
     landmarks_mem = []
@@ -119,6 +123,8 @@ def run_video(video_path, save_path):
         is_turning_head = False
         is_yawning = False
         is_moving = False
+        yolo1 = True
+        yolo2 = None
         frame_result = 0
 
         landmark_entropy, trl_entropy, mar, ear, aar = 0,0,0,888,0
@@ -136,6 +142,7 @@ def run_video(video_path, save_path):
         EAR_THRESHOLD = 0.16
         YAWN_THRESHOLD = 0.6
         face_num = 0
+
 
 
 
@@ -190,6 +197,7 @@ def run_video(video_path, save_path):
 
         # 如果没有找到有效的检测框，返回img1为img0的右3/5区域
         if rightmost_box is None:
+            yolo1 = None
             is_turning_head = True
             print('no human box found')
 
@@ -225,10 +233,10 @@ def run_video(video_path, save_path):
 
         # frame = frame[y1:y2, x1:x2]
         frame = frame[n1:n2, m1:m2]
-
+        img1 = img0[:, 600:1920, :]
         if phone_around_face == False:
             # 五个指标
-            faces = tracker.predict(img0)
+            faces = tracker.predict(img1)
             eye_results = eyes_model(img0)
             if len(faces) > 0:              #关键点检测部分
                 face_num = None
@@ -263,7 +271,7 @@ def run_video(video_path, save_path):
 
         ################################################  转头的yolo判断
             #这个地方需要有两种策略:如果这里传入frame,则不需要进行在画幅右4/9的判断.如果传入的img0则需要判断.
-            side_results = side_model(frame)
+            side_results = side_model(img0)
             side_boxes = side_results[0].boxes
 
             # 获取所有类别
@@ -278,17 +286,23 @@ def run_video(video_path, save_path):
 
             # 遍历所有的边界框
             for box, cls, conf in zip(side_boxes.xyxy, side_classes, side_confidences):
-                # if box[0] > img_width * 4/9:
-                #     if rightmost_box is None or box[0] > rightmost_box[0]:
-                #         rightmost_box = box
-                #         rightmost_cls = cls
-                if rightmost_box is None or box[0] > rightmost_box[0]:
-                    rightmost_box = box
-                    rightmost_cls = cls
+                if box[0] > img_width * 3/9:
+                    if rightmost_box is None or box[0] > rightmost_box[0]:
+                        rightmost_box = box
+                        rightmost_cls = cls
+                # if rightmost_box is None or box[0] > rightmost_box[0]:
+                #     rightmost_box = box
+                #     rightmost_cls = cls
 
-            if rightmost_cls != 0 or rightmost_box is None:
+
+            if rightmost_box is None:
+                yolo2 = None
+                is_turning_head = True
+            elif rightmost_cls != 0 and rightmost_cls is not None:
+                yolo2 = True
                 is_turning_head = True
             else:
+                yolo2 = False
                 is_turning_head = False
 
             # is_moving = True if landmark_entropy > 50 else False
@@ -336,7 +350,6 @@ def run_video(video_path, save_path):
 
         if phone_around_face: #3
             print(f'overlap:{overlap}')
-            iou_list.append(overlap)
             frame_result = 3
             use_phone_frame += 1
             mouth_open_frame = 0
@@ -373,6 +386,10 @@ def run_video(video_path, save_path):
             mar_list.append(mar)
             L_E_list.append(L_E)
             R_E_list.append(R_E)
+            side_list.append(is_turning_head)
+            iou_list.append(overlap)
+            yolo1_list.append(yolo1)
+            yolo2_list.append(yolo2)
 
 
         if use_phone_frame >= real_fps_3s:  #帧数
@@ -401,6 +418,9 @@ def run_video(video_path, save_path):
     print(f'L_E_list:{L_E_list}')
     print(f'R_E_list:{R_E_list}')
     print(f'iou_list:{iou_list}')
+    print(f'side_list:{side_list}')
+    print(f'yolo1_list:{yolo1_list}')
+    print(f'yolo2_list:{yolo2_list}')
 
 
 
@@ -412,7 +432,8 @@ def run_video(video_path, save_path):
 
 
 def main():
-    video_dir = r'F:\ccp1\close'
+    video_dir = r'F:\ccp1\interference\check'
+    # video_dir = r'F:\ChallengeCup'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
     video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]
