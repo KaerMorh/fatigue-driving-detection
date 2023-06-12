@@ -46,7 +46,7 @@ def run_video(video_path, save_path):
     yolo_model = YOLO('best.pt')
     side_model = YOLO('120best.pt')
     eyes_model = YOLO('eyev8best.pt')
-    tracker = Tracker(1920, 1080, threshold=None, max_threads=4, max_faces=4,
+    tracker = Tracker(int(1920 * 24 / 30), 1080, threshold=None, max_threads=4, max_faces=4,
                       discard_after=10, scan_every=3, silent=True, model_type=3,
                       model_dir=None, no_gaze=False, detection_threshold=0.6,
                       use_retinaface=0, max_feature_updates=900,
@@ -66,6 +66,7 @@ def run_video(video_path, save_path):
     alpha = 0.89#9帧中取7帧
     #
     real_fps_3s = int(fps_3s * alpha)
+
 
 
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -155,12 +156,17 @@ def run_video(video_path, save_path):
         if cnt + 80 > frames:  # 最后三秒不判断了
             break
 
+
+
         print(f'video {cnt}/{frames} {save_path}')  # delete
         # process the image with the yolo and get the person list
         results = yolo_model(frame)
 
-        # 创建img0的副本
+        # 创建img0的副本,并进行faceimg的裁剪
         img0 = frame.copy()
+        width = img0.shape[1]
+        start_col = int(width * 8 / 30)
+        face_img = img0[:, start_col:, :]
 
         # 获取图像的宽度
         img_height = frame.shape[0]
@@ -236,7 +242,7 @@ def run_video(video_path, save_path):
         img1 = img0[:, 600:1920, :]
         if phone_around_face == False:
             # 五个指标
-            faces = tracker.predict(img1)
+            faces = tracker.predict(face_img)
             eye_results = eyes_model(img0)
             if len(faces) > 0:              #关键点检测部分
                 face_num = None
@@ -286,10 +292,11 @@ def run_video(video_path, save_path):
 
             # 遍历所有的边界框
             for box, cls, conf in zip(side_boxes.xyxy, side_classes, side_confidences):
-                if box[0] > img_width * 3/9:
+                if box[0] > img_width * 4/9:
                     if rightmost_box is None or box[0] > rightmost_box[0]:
                         rightmost_box = box
                         rightmost_cls = cls
+                        print(f'box[0]:{box[0]}')
                 # if rightmost_box is None or box[0] > rightmost_box[0]:
                 #     rightmost_box = box
                 #     rightmost_cls = cls
@@ -304,6 +311,7 @@ def run_video(video_path, save_path):
             else:
                 yolo2 = False
                 is_turning_head = False
+
 
             # is_moving = True if landmark_entropy > 50 else False
 ################################################################################
