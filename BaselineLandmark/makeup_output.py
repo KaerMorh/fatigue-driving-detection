@@ -241,13 +241,13 @@ def run_video(video_path,save_path ):
 
         # 遍历所有的边界框
         for box, cls, conf in zip(side_boxes.xyxy, side_classes, side_confidences):
-            # if box[0] > img_width * 4/9:
-            #     if rightmost_box is None or box[0] > rightmost_box[0]:
-            #         rightmost_box = box
-            #         rightmost_cls = cls
-            if rightmost_box is None or box[0] > rightmost_box[0]:
-                rightmost_box = box
-                rightmost_cls = cls
+            if box[0] > img_width * 3/9:
+                if rightmost_box is None or box[0] > rightmost_box[0]:
+                    rightmost_box = box
+                    rightmost_cls = cls
+            # if rightmost_box is None or box[0] > rightmost_box[0]:
+            #     rightmost_box = box
+            #     rightmost_cls = cls
 
         if rightmost_box is None:
             is_turning_head = None
@@ -256,14 +256,14 @@ def run_video(video_path,save_path ):
         else:
             is_turning_head = False
 
-        img1 = img0[:, 600:1920, :]
-        faces = tracker.predict(img1)
+        # img1 = img0[:, 600:1920, :]
+        faces = tracker.predict(frame)
         eye_results = eyes_model(img0)
         if len(faces) > 0:
             face_num = None
             max_x = 0
             for face_num_index, f in enumerate(faces):
-                if max_x <= f.bbox[3]:
+                if max_x <= f.bbox[3] or face_num is None:
                     face_num = face_num_index
                     max_x = f.bbox[3]
             if face_num is not None:
@@ -306,7 +306,7 @@ def run_video(video_path,save_path ):
                     print(f'mar:{mar}')
                 # print(MOUTH_AR_THRESH)
                 #                         print(len(f.lms), f.euler)
-                # img0 = eye_results[0].plot()
+                img0 = results[0].plot()
                 # cv2.putText(frame, f"AAR: {aar:.2f}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                 if mar > YAWN_THRESHOLD:
                     cv2.putText(img0, f"MAR: {mar}", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
@@ -335,7 +335,8 @@ def run_video(video_path,save_path ):
                 cv2.putText(img0, f"pose3: {pose3:.2f}", (10, 330), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                 cv2.putText(img0, f"cnt: {cnt}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 254, 37), 2)
 
-                img0 = eye_results[0].plot()
+                # img0 = eye_results[0].plot()
+                # img0 = results[0].plot()
 
         cv2.putText(img0, f"yolo1: {yolo1}", (10, 360), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 254, 37), 2)
         cv2.putText(img0, f"side: {is_turning_head}", (10, 390), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 254, 37), 2)
