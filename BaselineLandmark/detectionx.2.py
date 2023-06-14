@@ -39,8 +39,8 @@ def iou(box1, box2):
     iou = overlap_area / float(box1_area + box2_area - overlap_area)
     return iou
 
-
-def check_sequence(ear_list, result_list):
+#
+def check_sequence(ear_list, result_list, diff_threshold=0.04):
     ear_array = np.array(ear_list)
     result_array = np.array(result_list)
 
@@ -48,29 +48,38 @@ def check_sequence(ear_list, result_list):
     if len(ear_array) < 6 or len(ear_array) != len(result_array):
         return False
 
-    for i in range(len(ear_array)-5):
-        current_ear = ear_array[i:i+6]
+    # 计算EAR序列的差分
+    ear_diff = np.abs(np.diff(ear_array))
+
+    print(ear_diff)
+
+    for i in range(len(ear_diff)-5):
+        current_diff = ear_diff[i:i+5]
         current_result = result_array[i:i+6]
 
-        # 检查是否有888
-        if np.any(current_ear == 888):
-            continue
+        if np.any(current_diff > diff_threshold): #突变且不够小的数存在
+            if not np.all(ear_array[i:i+6] < 0.18):
+                continue
 
-        # 检查窗口内的变动是否超过30%
-        if np.any(np.abs(current_ear - np.mean(current_ear)) / np.mean(current_ear) > 0.3):
+        # 检查是否有888
+        if np.any(ear_array[i:i+6] == 888):
             continue
 
         # 剔除888
-        other_ear = ear_array[np.logical_and(np.arange(len(ear_array)) < i, np.arange(len(ear_array)) >= i+6)]
+        other_ear = ear_array[np.logical_and(np.arange(len(ear_array)) != i, np.arange(len(ear_array)) != i+5)]
 
         if len(other_ear) == 0:
             continue
 
+        mean1 = np.mean(ear_array[i:i+6])
+        mean2 = np.mean(other_ear)
         # 计算平均值并比较
-        if np.mean(current_ear) < np.mean(other_ear) * 0.8 and np.all(np.logical_or(current_result == 0, current_result == 1)):
+        if mean1 < mean2 * 0.8 and np.all(np.logical_or(current_result == 0, current_result == 1)):
+            # 在窗口内的变动是否超过阈值
             return True
 
     return False
+
 
 
 def run_video(video_path, save_path):
@@ -134,7 +143,7 @@ def run_video(video_path, save_path):
     yolo2_list = []
 
     inactivations = [1,28,52]
-    landmarks_mem = []
+    last_confirm = []
     # 用于判断是否在看手机
     front_face = True
     last_turning_head = False
@@ -149,9 +158,6 @@ def run_video(video_path, save_path):
     now = time.time()  # 读取视频与加载模型的时间不被计时（？）
 
     while cap.isOpened():
-        # while len(landmarks_mem) > 2:
-        #     landmarks_mem.pop(0)
-
         if cnt >= frames:
             break
         phone_around_face = False
@@ -179,14 +185,18 @@ def run_video(video_path, save_path):
         YAWN_THRESHOLD = 0.5
         face_num = 0
 
+        new_test = 0
 
+        if eyes_closed_frame == 5-1:  #如果连续5帧都是闭眼的，则在第2.8s加一个快查
+            new_test = int(cnt + 0.1 * fps_3s)
+            last_confirm.append(new_test)
 
 
 
         cnt += 1
         ret, frame = cap.read()
         # if cnt % 10 != 0 and cnt != 2 and not(cnt in inactivations):  #帧数
-        if cnt % tickness != 0:
+        if cnt % tickness != 0 and not (cnt in last_confirm):
             continue
         if cnt + int(fps_3s*8/9) > frames:  # 最后三秒，若没有异常则不判断了
             #如果result_list最后一位是0
@@ -512,7 +522,7 @@ def run_video(video_path, save_path):
 
 def main():
     # video_dir = r'F:\ccp1\close'
-    video_dir = r'F:\ccp2\1and2'
+    video_dir = r'F:\ccp2\1\night'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
     video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]
