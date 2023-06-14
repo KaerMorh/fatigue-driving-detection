@@ -40,14 +40,45 @@ def iou(box1, box2):
     return iou
 
 
+def check_sequence(ear_list, result_list):
+    ear_array = np.array(ear_list)
+    result_array = np.array(result_list)
 
+    # 检查长度
+    if len(ear_array) < 6 or len(ear_array) != len(result_array):
+        return False
+
+    for i in range(len(ear_array)-5):
+        current_ear = ear_array[i:i+6]
+        current_result = result_array[i:i+6]
+
+        # 检查是否有888
+        if np.any(current_ear == 888):
+            continue
+
+        # 检查窗口内的变动是否超过30%
+        if np.any(np.abs(current_ear - np.mean(current_ear)) / np.mean(current_ear) > 0.3):
+            continue
+
+        # 剔除888
+        other_ear = ear_array[np.logical_and(np.arange(len(ear_array)) < i, np.arange(len(ear_array)) >= i+6)]
+
+        if len(other_ear) == 0:
+            continue
+
+        # 计算平均值并比较
+        if np.mean(current_ear) < np.mean(other_ear) * 0.8 and np.all(np.logical_or(current_result == 0, current_result == 1)):
+            return True
+
+    return False
 
 
 def run_video(video_path, save_path):
     cap = cv2.VideoCapture(video_path)
 
     # 初始化所有模型
-    yolo_model = YOLO('best.pt')
+    # yolo_model = YOLO('best.pt')
+    yolo_model = YOLO('180epochsbest.pt')
     side_model = YOLO('120best.pt')
 
     tracker = Tracker(1920, 1080, threshold=None, max_threads=4, max_faces=4,
@@ -68,9 +99,9 @@ def run_video(video_path, save_path):
     tickness = int(fps / 2) #每秒测几
     fps_3s = int(fps / tickness) * 3#
     alpha = 1#9帧中取7帧
-    #
-    real_fps_3s = int(fps_3s * alpha)
+    mar_alpha = 0.89 #mar的检测可以用5/6帧
 
+    # real_fps_3s = int(fps_3s * alpha)#放在进程处单独检测了
 
 
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -81,7 +112,7 @@ def run_video(video_path, save_path):
 
     ANGLE_THRESHOLD = 35
     EAR_THRESHOLD = 0.11
-    YAWN_THRESHOLD = 0.6
+    YAWN_THRESHOLD = 0.5
 
     eyes_closed_frame = 0
     mouth_open_frame = 0
@@ -157,7 +188,7 @@ def run_video(video_path, save_path):
         # if cnt % 10 != 0 and cnt != 2 and not(cnt in inactivations):  #帧数
         if cnt % tickness != 0:
             continue
-        if cnt + 80 > frames:  # 最后三秒，若没有异常则不判断了
+        if cnt + int(fps_3s*8/9) > frames:  # 最后三秒，若没有异常则不判断了
             #如果result_list最后一位是0
             if len(result_list) > 0 and result_list[-1] == 0:
                 break
@@ -249,6 +280,7 @@ def run_video(video_path, save_path):
         # # frame = frame[y1:y2, x1:x2]
         # frame = frame[n1:n2, m1:m2]
         # img1 = img0[:, 600:1920, :]
+        phone_around_face = False #TODO: delete
         if phone_around_face == False:
             # 五个指标
             faces = tracker.predict(img0)
@@ -263,7 +295,7 @@ def run_video(video_path, save_path):
                 if face_num is not None:
                     f = faces[face_num]
                     f = copy.copy(f)
-                    print(f'box[0]:{box[0]}')
+                    print(f'box[0]:{max_x}')
 
                     # 检测是否转头
                     # if np.abs(standard_pose[0] - f.euler[0]) >= 45 or np.abs(standard_pose[1] - f.euler[1]) >= 45 or \
@@ -358,7 +390,7 @@ def run_video(video_path, save_path):
         else:
             mouth_open_frame = 0
 
-        # if is_turning_head:
+        is_turning_head = False #TODO: delete
         if is_moving:
             eyes_closed_frame = 0
         if is_turning_head:
@@ -415,7 +447,7 @@ def run_video(video_path, save_path):
             yolo1_list.append(yolo1)
             yolo2_list.append(yolo2)
 
-
+        real_fps_3s = int(fps_3s * alpha)
         if use_phone_frame >= real_fps_3s:  #帧数
             result['result']['category'] = 3
             break
@@ -424,7 +456,7 @@ def run_video(video_path, save_path):
             result['result']['category'] = 4
             break
 
-        elif mouth_open_frame >= real_fps_3s:  #帧数
+        elif mouth_open_frame >= int(fps_3s * mar_alpha):#帧数
             result['result']['category'] = 2
             break
 
@@ -449,11 +481,11 @@ def run_video(video_path, save_path):
     #         else:
     #             ear_judge_list.append(1)
     #         i += 1
-    # if result['result']['category'] == 0:
-        # try:
-        #     result['result']['category'] = 1 if check_sequence(ear_list, result_list) else 0
-        # except:
-        #     result['result']['category'] = 0
+    if result['result']['category'] == 0:
+        try:
+            result['result']['category'] = 1 if check_sequence(ear_list, result_list) else 0
+        except:
+            result['result']['category'] = 0
     final_time = time.time()
     duration = int(np.round((final_time - now) * 1000))
     print(f'len(result_list):{len(result_list)}')
@@ -473,13 +505,14 @@ def run_video(video_path, save_path):
     cap.release()
 
     result['result']['duration'] = duration
+    print(result)
 
     return result, result_list, result_cnt_list, mar_list, ear_list, L_E_list, R_E_list
 
 
 def main():
-    # video_dir = r'F:\ccp1\interference\check\re'
-    video_dir = r'F:\ccp2\1'
+    # video_dir = r'F:\ccp1\close'
+    video_dir = r'F:\ccp2\1and2'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
     video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]
