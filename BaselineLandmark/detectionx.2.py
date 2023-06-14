@@ -39,7 +39,7 @@ def iou(box1, box2):
     iou = overlap_area / float(box1_area + box2_area - overlap_area)
     return iou
 
-#
+#修改均值由0.8-0.9
 def check_sequence(ear_list, result_list, diff_threshold=0.04):
     ear_array = np.array(ear_list)
     result_array = np.array(result_list)
@@ -74,7 +74,7 @@ def check_sequence(ear_list, result_list, diff_threshold=0.04):
         mean1 = np.mean(ear_array[i:i+6])
         mean2 = np.mean(other_ear)
         # 计算平均值并比较
-        if mean1 < mean2 * 0.8 and np.all(np.logical_or(current_result == 0, current_result == 1)):
+        if mean1 < mean2 * 0.9 and np.all(np.logical_or(current_result == 0, current_result == 1)):
             # 在窗口内的变动是否超过阈值
             return True
 
@@ -88,7 +88,7 @@ def run_video(video_path, save_path):
     # 初始化所有模型
     # yolo_model = YOLO('best.pt')
     yolo_model = YOLO('180epochsbest.pt')
-    side_model = YOLO('120best.pt')
+    side_model = YOLO('best ce_facemore.pt')
 
     tracker = Tracker(1920, 1080, threshold=None, max_threads=4, max_faces=4,
                       discard_after=10, scan_every=3, silent=True, model_type=3,
@@ -119,9 +119,6 @@ def run_video(video_path, save_path):
     ######################################################################################################
     result = {"result": {"category": 0, "duration": 6000}}
 
-    ANGLE_THRESHOLD = 35
-    EAR_THRESHOLD = 0.11
-    YAWN_THRESHOLD = 0.5
 
     eyes_closed_frame = 0
     mouth_open_frame = 0
@@ -290,7 +287,7 @@ def run_video(video_path, save_path):
         # # frame = frame[y1:y2, x1:x2]
         # frame = frame[n1:n2, m1:m2]
         # img1 = img0[:, 600:1920, :]
-        phone_around_face = False #TODO: delete
+        # phone_around_face = False #TODO: delete
         if phone_around_face == False:
             # 五个指标
             faces = tracker.predict(img0)
@@ -344,7 +341,7 @@ def run_video(video_path, save_path):
 
             # 遍历所有的边界框
             for box, cls, conf in zip(side_boxes.xyxy, side_classes, side_confidences):
-                if box[0] > img_width * 4/9:
+                if box[0] > img_width * 0.477:
                     if rightmost_box is None or box[0] > rightmost_box[0]:
                         rightmost_box = box
                         rightmost_cls = cls
@@ -400,7 +397,7 @@ def run_video(video_path, save_path):
         else:
             mouth_open_frame = 0
 
-        is_turning_head = False #TODO: delete
+        # is_turning_head = False #TODO: delete
         if is_moving:
             eyes_closed_frame = 0
         if is_turning_head:
@@ -458,11 +455,11 @@ def run_video(video_path, save_path):
             yolo2_list.append(yolo2)
 
         real_fps_3s = int(fps_3s * alpha)
-        if use_phone_frame >= real_fps_3s:  #帧数
+        if use_phone_frame >= int(fps_3s * mar_alpha):  #帧数
             result['result']['category'] = 3
             break
 
-        elif look_around_frame >= real_fps_3s:  #帧数
+        elif look_around_frame >= (fps_3s * mar_alpha):  #帧数
             result['result']['category'] = 4
             break
 
@@ -522,7 +519,8 @@ def run_video(video_path, save_path):
 
 def main():
     # video_dir = r'F:\ccp1\close'
-    video_dir = r'F:\ccp2\1\night'
+    # video_dir = r'F:\ccp2\1\day'
+    video_dir = r'F:\ccp2\1\re'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
     video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]
