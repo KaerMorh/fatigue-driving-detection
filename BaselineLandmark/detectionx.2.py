@@ -200,7 +200,8 @@ def run_video(video_path, save_path):
         # if cnt % 10 != 0 and cnt != 2 and not(cnt in inactivations):  #帧数
         if cnt % tickness != 0 and not (cnt in last_confirm):
             continue
-        if cnt + int(fps_3s*8/9) > frames:  # 最后三秒，若没有异常则不判断了
+        # if cnt + int(fps_3s*8/9) > frames:
+        if cnt + int(fps * 2.5) > frames :  # 最后三秒，若没有异常则不判断了#TODO:
             #如果result_list最后一位是0
             if len(result_list) > 0 and result_list[-1] == 0:
                 break
@@ -508,7 +509,7 @@ def run_video(video_path, save_path):
 def main():
     # video_dir = r'F:\ccp1\close'
     # video_dir = r'F:\ccp2\1\day'
-    video_dir = r'F:\ccp2\3\day'
+    video_dir = r'F:\ccp2\interference\check'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
     video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]
