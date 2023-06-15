@@ -65,8 +65,13 @@ def check_sequence(ear_list, result_list, diff_threshold=0.04):
         if np.any(ear_array[i:i+6] == 888):
             continue
 
+        if not (np.all(np.logical_or(current_result == 0, current_result == 1))):
+            continue
+
         # 剔除888
-        other_ear = ear_array[np.logical_and(np.arange(len(ear_array)) != i, np.arange(len(ear_array)) != i+5)]
+        other_ear = ear_array[
+            np.logical_and(np.logical_and(np.arange(len(ear_array)) != i, np.arange(len(ear_array)) != i + 5),
+                           ear_array != 888)]
 
         if len(other_ear) == 0:
             continue
@@ -74,7 +79,7 @@ def check_sequence(ear_list, result_list, diff_threshold=0.04):
         mean1 = np.mean(ear_array[i:i+6])
         mean2 = np.mean(other_ear)
         # 计算平均值并比较
-        if mean1 < mean2 * 0.9 and np.all(np.logical_or(current_result == 0, current_result == 1)):
+        if mean1 < mean2 * 0.9 :
             # 在窗口内的变动是否超过阈值
             return True
 
@@ -87,8 +92,8 @@ def run_video(video_path, save_path):
 
     # 初始化所有模型
     # yolo_model = YOLO('best.pt')
-    yolo_model = YOLO('180epochsbest.pt')
-    side_model = YOLO('best ce_facemore.pt')
+    yolo_model = YOLO('bestface.pt')
+    side_model = YOLO('best ce_face.pt')
 
     tracker = Tracker(1920, 1080, threshold=None, max_threads=4, max_faces=4,
                       discard_after=10, scan_every=3, silent=True, model_type=3,
@@ -108,7 +113,7 @@ def run_video(video_path, save_path):
     tickness = int(fps / 2) #每秒测几
     fps_3s = int(fps / tickness) * 3#
     alpha = 1#9帧中取7帧
-    mar_alpha = 0.89 #mar的检测可以用5/6帧
+    mar_alpha = 0.85 #mar的检测可以用5/6帧
 
     # real_fps_3s = int(fps_3s * alpha)#放在进程处单独检测了
 
@@ -287,7 +292,7 @@ def run_video(video_path, save_path):
         # # frame = frame[y1:y2, x1:x2]
         # frame = frame[n1:n2, m1:m2]
         # img1 = img0[:, 600:1920, :]
-        # phone_around_face = False #TODO: delete
+
         if phone_around_face == False:
             # 五个指标
             faces = tracker.predict(img0)
@@ -397,7 +402,6 @@ def run_video(video_path, save_path):
         else:
             mouth_open_frame = 0
 
-        # is_turning_head = False #TODO: delete
         if is_moving:
             eyes_closed_frame = 0
         if is_turning_head:
@@ -425,23 +429,7 @@ def run_video(video_path, save_path):
         else:
             use_phone_frame = 0
 
-        # else:
-        #     if phone_around_face: #3
-        #         mouth_open_frame = 0
-        #         look_around_frame = 0
-        #         eyes_closed_frame = 0
-        #     if is_turning_head:
-        #         mouth_open_frame = 0
-        #         eyes_closed_frame = 0
-        #     if not is_eyes_closed:
-        #         eyes_closed_frame = 0
-        #     if not is_yawning:
-        #         mouth_open_frame = 0
 
-            ###################################################
-            # im0 = display_results(img0, det, names,is_eyes_closed, is_turning_head, is_yawning)
-            # # write video
-            # vid_writer.write(im0)
         if not (cnt in inactivations):
             result_list.append(frame_result)
             result_cnt_list.append(cnt)
@@ -520,7 +508,7 @@ def run_video(video_path, save_path):
 def main():
     # video_dir = r'F:\ccp1\close'
     # video_dir = r'F:\ccp2\1\day'
-    video_dir = r'F:\ccp2\1\re'
+    video_dir = r'F:\ccp2\3\day'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
     video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]
