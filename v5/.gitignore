@@ -1,34 +1,68 @@
-# Repo-specific DockerIgnore -------------------------------------------------------------------------------------------
-.git
-.cache
-.idea
-runs
-output
-coco
-storage.googleapis.com
-
-data/samples/*
-**/results*.csv
+# Repo-specific GitIgnore ----------------------------------------------------------------------------------------------
 *.jpg
+*.jpeg
+*.png
+*.bmp
+*.tif
+*.tiff
+*.heic
+*.JPG
+*.JPEG
+*.PNG
+*.BMP
+*.TIF
+*.TIFF
+*.HEIC
+*.mp4
+*.mov
+*.MOV
+*.avi
+*.data
+*.json
+*.cfg
+!setup.cfg
+!cfg/yolov3*.cfg
+
+storage.googleapis.com
+runs/*
+v5/data/*
+v5/data/images/*
+!data/*.yaml
+!v5/data/hyps
+!v5/data/scripts
+!v5/data/images
+!v5/data/images/zidane.jpg
+!v5/data/images/bus.jpg
+!data/*.sh
+
+results*.csv
+
+# Datasets -------------------------------------------------------------------------------------------------------------
+coco/
+coco128/
+VOC/
+
+# MATLAB GitIgnore -----------------------------------------------------------------------------------------------------
+*.m~
+*.mat
+!targets*.mat
 
 # Neural Network weights -----------------------------------------------------------------------------------------------
-**/*.pt
-**/*.pth
-**/*.onnx
-**/*.engine
-**/*.mlmodel
-**/*.torchscript
-**/*.torchscript.pt
-**/*.tflite
-**/*.h5
-**/*.pb
+*.weights
+*.pt
+*.pb
+*.onnx
+*.engine
+*.mlmodel
+*.torchscript
+*.tflite
+*.h5
 *_saved_model/
 *_web_model/
 *_openvino_model/
-
-# Below Copied From .gitignore -----------------------------------------------------------------------------------------
-# Below Copied From .gitignore -----------------------------------------------------------------------------------------
-
+*_paddle_model/
+darknet53.conv.74
+yolov3-tiny.conv.15
 
 # GitHub Python GitIgnore ----------------------------------------------------------------------------------------------
 # Byte-compiled / optimized / DLL files
@@ -55,9 +89,10 @@ sdist/
 var/
 wheels/
 *.egg-info/
-wandb/
+/wandb/
 .installed.cfg
 *.egg
+
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
