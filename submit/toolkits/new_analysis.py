@@ -10,7 +10,7 @@ def face_analysis(image, rect, landmarks_mem=None,get_detail=False):
 
 
     landmarks, headpose, _ = spiga_frame_inference(image, rect) # 人脸关键点检测
-    if len(landmarks_mem)>1  :
+    if len(landmarks_mem) > 1  :
         landmarks_mem.pop(0)    # 删除第一帧
     landmarks_mem.append(landmarks) # 保存前后两帧的landmarks
 

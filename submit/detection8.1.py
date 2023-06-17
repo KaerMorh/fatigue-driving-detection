@@ -170,7 +170,7 @@ def run_video(video_path, save_path):
             x1 = max(0, int(x1 - 0.1 * (x2 - x1)))
             y1 = max(0, int(y1 - 0.1 * (y2 - y1)))
             x2 = min(img_width, int(x2 + 0.1 * (x2 - x1)))
-            y2 = min(img_width, int(y2 + 0.1 * (y2 - y1)))
+            y2 = min(img_width, int(y2 + 0.1 * (y2 - y1))) # 把框扩大10%
             # img1 = img1[y1:y2, x1:x2]
             m1, n1, m2, n2 = x1, y1, x2, y2
             # x1, y1, x2, y2 = rightmost_box
