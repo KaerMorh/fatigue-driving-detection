@@ -63,7 +63,7 @@ def run_video(video_path, save_path):
     fps = cap.get(cv2.CAP_PROP_FPS)
     tickness = int(fps / 2) #每秒测几
     fps_3s = int(fps / tickness) * 3#
-    alpha = 0.89#9帧中取7帧
+    alpha = 1#9帧中取7帧
     #
     real_fps_3s = int(fps_3s * alpha)
 
@@ -153,8 +153,11 @@ def run_video(video_path, save_path):
         # if cnt % 10 != 0 and cnt != 2 and not(cnt in inactivations):  #帧数
         if cnt % tickness != 0:
             continue
-        if cnt + 80 > frames:  # 最后三秒不判断了
-            break
+        if cnt + 80 > frames:  # 最后三秒，若没有异常则不判断了
+            #如果result_list最后一位是0
+            if result_list[-1] == 0:
+                break
+
 
 
 
@@ -322,6 +325,13 @@ def run_video(video_path, save_path):
             # is_eyes_closed = True if (L_E < EAR_THRESHOLD or R_E < EAR_THRESHOLD) else False
 
         # if not (cnt in inactivations): #如果不在不活跃的帧数里
+        #如果results的长度等于零，则将is_yawning，is_eyes_closed，is_turning_head，is_moving都置为False
+        if len(results) == 0:
+            is_yawning = False
+            is_eyes_closed = False
+            is_turning_head = False
+            is_moving = False
+
         ear_list.append(ear)
         if is_eyes_closed:
             print(f'ear:{ear}')

@@ -189,7 +189,7 @@ def run_video(video_path, save_path):
 
         new_test = 0
 
-        if eyes_closed_frame == 5-1:  #如果连续5帧都是闭眼的，则在第2.8s加一个快查
+        if eyes_closed_frame == 6-1:  #如果连续5帧都是闭眼的，则在第2.8s加一个快查
             new_test = int(cnt + 0.1 * fps_3s)
             last_confirm.append(new_test)
 
@@ -201,7 +201,7 @@ def run_video(video_path, save_path):
         if cnt % tickness != 0 and not (cnt in last_confirm):
             continue
         # if cnt + int(fps_3s*8/9) > frames:
-        if cnt + int(fps * 2.5) > frames :  # 最后三秒，若没有异常则不判断了#TODO:
+        if cnt + int(fps * 0.2) > frames :  # 最后三秒，若没有异常则不判断了#TODO:
             #如果result_list最后一位是0
             if len(result_list) > 0 and result_list[-1] == 0:
                 break
@@ -508,8 +508,8 @@ def run_video(video_path, save_path):
 
 def main():
     # video_dir = r'F:\ccp1\close'
-    # video_dir = r'F:\ccp2\1\day'
-    video_dir = r'F:\ccp2\interference\check'
+    video_dir = r'F:\ccp2\1\night'
+    # video_dir = r'F:\ccp2\interference\check'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
     video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]

@@ -103,16 +103,17 @@ def output_module(im0):
     return True
 
 def main():
-    eyes_model = YOLO('eyev8best.pt')
-    tracker = Tracker(960, 540, threshold=None, max_threads=4, max_faces=4,
+    # eyes_model = YOLO('eyev8best.pt')
+    # eyes_model = YOLO('eye_ce_facebest.pt')
+    tracker = Tracker(1920, 1080, threshold=None, max_threads=4, max_faces=4,
                       discard_after=10, scan_every=3, silent=True, model_type=3,
                       model_dir=None, no_gaze=False, detection_threshold=0.6,
                       use_retinaface=0, max_feature_updates=900,
                       static_model=True, try_hard=False)
 
-    yolo_model = YOLO('best.pt')
+    yolo_model = YOLO('180epochsbest.pt')
     sensitivity = 0.01
-    side_model = YOLO('120best.pt')
+    side_model = YOLO('best ce_face.pt')
 
     standard_pose = [180, 40, 80]
     lStart = 42
@@ -123,15 +124,26 @@ def main():
     # (mStart, mEnd) = (49, 66)
     mStart = 49
     mEnd = 66
-    EAR_THRESHOLD = 0.1
+    EAR_THRESHOLD = 0.16
     YAWN_THRESHOLD = 0.6
     face_num = 0
+    pose1, pose2, pose3 = 0, 0, 0
+    cnt = 0
+    max_x1 = 0
 
     while True:
 
         img, img0= input_module()
         frame = img0.copy()
-        # frame = frame[:, 600:1920, :]
+        # img0 = img0[:, 600:1920, :]
+        # width = img0.shape[1]
+        # start_col = int(width * 8 / 30)
+        # img0 = img0[:, start_col:, :]
+
+        # frame = img0[:, 640:, :] # 获取右边的图像
+        yolo1 = True
+
+
         # 获取图像的宽度
         results = yolo_model(frame)
         img_height = frame.shape[0]
@@ -169,7 +181,7 @@ def main():
 
         # 如果没有找到有效的检测框，返回img1为img0的右3/5区域
         if rightmost_box is None:
-            is_turning_head = True
+            yolo1 = False
             img1 = img1
             m1 = int(img_width * 2 / 5)
             n1 = 0
@@ -213,9 +225,36 @@ def main():
 
         # img0 = frame[y1:y2, x1:x2]
 
+        side_results = side_model(frame)
+        side_boxes = side_results[0].boxes
+        side_classes = side_boxes.cls
+        # 获取所有的置信度
+        side_confidences = side_boxes.conf
+        rightmost_box = None
 
-        faces = tracker.predict(frame)
-        eye_results = eyes_model(img0)
+        rightmost_cls = None
+
+        # 遍历所有的边界框
+        for box, cls, conf in zip(side_boxes.xyxy, side_classes, side_confidences):
+            # if box[0] > img_width * 4/9:
+            #     if rightmost_box is None or box[0] > rightmost_box[0]:
+            #         rightmost_box = box
+            #         rightmost_cls = cls
+            if rightmost_box is None or box[0] > rightmost_box[0]:
+                rightmost_box = box
+                rightmost_cls = cls
+
+
+        if rightmost_box is None:
+            is_turning_head = None
+        elif rightmost_cls != 0 :
+            is_turning_head = True
+        else:
+            is_turning_head = False
+
+
+        faces = tracker.predict(img0)
+        # eye_results = eyes_model(img0)
         if len(faces) > 0:
             face_num = None
             max_x = 0
@@ -226,13 +265,17 @@ def main():
             if face_num is not None:
                 f = faces[face_num]
                 f = copy.copy(f)
+                max_x1 = max_x
 
                 # 检测是否转头
-                if np.abs(standard_pose[0] - f.euler[0]) >= 45 or np.abs(standard_pose[1] - f.euler[1]) >= 45 or \
-                        np.abs(standard_pose[2] - f.euler[2]) >= 45:
-                    is_turning_head = True
-                else:
-                    is_turning_head = False
+                # if np.abs(standard_pose[0] - f.euler[0]) >= 45 or np.abs(standard_pose[1] - f.euler[1]) >= 45 or \
+                #         np.abs(standard_pose[2] - f.euler[2]) >= 45:
+                #     is_turning_head = True
+                # else:
+                #     is_turning_head = False
+                pose1 = np.abs(standard_pose[0] - f.euler[0])
+                pose2 = np.abs(standard_pose[1] - f.euler[1])
+                pose3 = np.abs(standard_pose[2] - f.euler[2])
 
                 # 检测是否闭眼
                 # extract the left and right eye coordinates, then use the
@@ -260,7 +303,7 @@ def main():
                     print(f'mar:{mar}')
                 # print(MOUTH_AR_THRESH)
                 #                         print(len(f.lms), f.euler)
-                # img0 = eye_results[0].plot()
+                img0 = results[0].plot()
                 # cv2.putText(frame, f"AAR: {aar:.2f}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                 if mar > YAWN_THRESHOLD:
                     cv2.putText(img0, f"MAR: {mar}", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
@@ -283,8 +326,20 @@ def main():
                     cv2.putText(img0, f"R_E:{R_E}", (10, 240), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
                 if overlap:   # if overlap:
-                    cv2.putText(img0, f"IoU: {overlap:.2f}", (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    cv2.putText(img0, f"IoU: {overlap:.2f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
+                cv2.putText(img0, f"pose1: {pose1:.2f}", (10, 270), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                cv2.putText(img0, f"pose2: {pose2:.2f}", (10, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                cv2.putText(img0, f"pose3: {pose3:.2f}", (10, 330), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                cv2.putText(img0, f"cnt: {cnt}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 254, 37), 2)
+
+
+                # img0 = side_results[0].plot()
+        if rightmost_box is not None:
+            rightmost_box = rightmost_box[0]
+        cv2.putText(img0, f"yolo1: {yolo1}", (10, 360), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 254, 37), 2)
+        cv2.putText(img0, f"side: {is_turning_head}", (10, 390), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 254, 37), 2)
+        cv2.putText(img0, f"box[0]: { max_x1}", (10, 420), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 254, 37), 2)
         if not output_module(img0):
         # if not output_module(res_plotted):
             break

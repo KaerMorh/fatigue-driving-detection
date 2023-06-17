@@ -104,8 +104,13 @@ def output_module(im0):
 
 def run_video(video_path,save_path ):
     cap = cv2.VideoCapture(video_path)
-    eyes_model = YOLO('eyev8best.pt')
+    # eyes_model = YOLO('eyev8best.pt')
     # eyes_model = YOLO('eye_ce_facebest.pt')
+    # tracker = Tracker(1920, 1080, threshold=None, max_threads=4, max_faces=4,
+    #                   discard_after=10, scan_every=3, silent=True, model_type=3,
+    #                   model_dir=None, no_gaze=False, detection_threshold=0.6,
+    #                   use_retinaface=0, max_feature_updates=900,
+    #                   static_model=True, try_hard=False)
     tracker = Tracker(1920, 1080, threshold=None, max_threads=4, max_faces=4,
                       discard_after=10, scan_every=3, silent=True, model_type=3,
                       model_dir=None, no_gaze=False, detection_threshold=0.6,
@@ -131,12 +136,19 @@ def run_video(video_path,save_path ):
     pose1, pose2, pose3 = 0, 0, 0
     cnt = 0
     frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    tickness = int(fps / 2) #每秒测几
+    fps_3s = int(fps / tickness) * 3#
+    alpha = 0.89#9帧中取7帧
+    #
+    real_fps_3s = int(fps_3s * alpha)
+
 
     while cnt < frames -1:
         overlap = 0
         cnt += 1
         ret, img0 = cap.read()
-        if cnt % 10 != 0:
+        if cnt % tickness != 0:
             continue
         # img, img0 = input_module()
         frame = img0.copy()
@@ -144,7 +156,7 @@ def run_video(video_path,save_path ):
         # img0 = img0[:, 600:1920, :]
         # width = img0.shape[1]
         # start_col = int(width * 8 / 30)
-        # img0 = img0[:, start_col:, :]
+        # img1 = img0[:, start_col:, :]
 
         # frame = img0[:, 640:, :] # 获取右边的图像
         yolo1 = True
@@ -182,7 +194,7 @@ def run_video(video_path,save_path ):
                 if rightmost_box is None or box[0] > rightmost_box[0]:
                     rightmost_box = box
 
-        img1 = frame.copy()
+        # img1 = frame.copy()
 
         # 如果没有找到有效的检测框，返回img1为img0的右3/5区域
         if rightmost_box is None:
@@ -207,7 +219,7 @@ def run_video(video_path,save_path ):
             # #将图片的增大百分之20
             # dw, dh = int(0.1 * (x2 - x1)), int(0.1 * (y2 - y1))
             # x1, y1, x2, y2 = max(0, x1 - dw), max(0, y1 - dh), min(w, x2 + dw), min(h, y2 + dh)
-            img1 = img1[y1:y2, x1:x2]
+            # img1 = img1[y1:y2, x1:x2]
             # m1, n1, m2, n2 = x1, y1, x2, y2
 
             # 计算交集的面积
@@ -257,8 +269,8 @@ def run_video(video_path,save_path ):
             is_turning_head = False
 
         # img1 = img0[:, 600:1920, :]
-        faces = tracker.predict(frame)
-        eye_results = eyes_model(img0)
+        faces = tracker.predict(img0)
+        # eye_results = eyes_model(img0)
         if len(faces) > 0:
             face_num = None
             max_x = 0
@@ -269,6 +281,7 @@ def run_video(video_path,save_path ):
             if face_num is not None:
                 f = faces[face_num]
                 f = copy.copy(f)
+
 
                 # 检测是否转头
                 # if np.abs(standard_pose[0] - f.euler[0]) >= 45 or np.abs(standard_pose[1] - f.euler[1]) >= 45 or \
@@ -334,7 +347,7 @@ def run_video(video_path,save_path ):
                 cv2.putText(img0, f"pose2: {pose2:.2f}", (10, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                 cv2.putText(img0, f"pose3: {pose3:.2f}", (10, 330), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                 cv2.putText(img0, f"cnt: {cnt}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 254, 37), 2)
-
+                cv2.putText(img0, f"max_x: {max_x}", (10, 420), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 254, 37), 2)
                 # img0 = eye_results[0].plot()
                 # img0 = results[0].plot()
 
@@ -366,7 +379,7 @@ def process_videos(file_list, video_path, output_path):
 
         # Copy the video to the check directory
         shutil.copy(current_video_path, check_path)
-        run_video(current_video_path, current_output_path)
+        # run_video(current_video_path, current_output_path)
 
 
 if __name__ == '__main__':
@@ -374,7 +387,7 @@ if __name__ == '__main__':
 
     os.environ['KMP_DUPLICATE_LIB_OK']='TRUE'
     file_list = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\file_list.txt'
-    video_path = r'F:\ChallengeCup'
-    output_path = r'F:\ccp1\interference'
+    video_path = r'F:\ccp2\dataset'
+    output_path = r'F:\ccp2\interference'
 
     process_videos(file_list, video_path, output_path)
