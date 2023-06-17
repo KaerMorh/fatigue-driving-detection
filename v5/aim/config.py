@@ -1,0 +1,7 @@
+WEIGHTS = 'weights/apex.pt'
+IMGSZ = [640,640]
+CONF_THRES = 0.3
+IOU_THRES = 0.45
+LINE_THICKNESS = 1
+HIDE_CONF = True
+HIDE_LABELS = True
