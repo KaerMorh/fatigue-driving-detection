@@ -1,29 +1,21 @@
 from ultralytics import YOLO
 from spiga_model_processing import spig_process_frame
-import cv2
-from grabscreen import grab_screen
+from v5.grabscreen import grab_screen
 import torch
-import numpy as np
-
 
 yolo_model = YOLO('best.pt')
 side_model = YOLO(r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\submit\side.pt')
 device = 'cpu'
 half = device != 'cpu'
 # from utils.augmentations import letterbox
-import time
 # from submit.toolkits.utils import face_analysis
 # from ultralytics import YOLO
 from submit.toolkits.new_analysis import face_analysis
 
 import cv2
-import os
 
 import numpy as np
-from datetime import datetime
 import time
-import json
-
 
 
 def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleFill=False, scaleup=True, stride=32):
@@ -335,8 +327,7 @@ def run_video(video_path,save_path,mode,save_mode = 0):
         if mode == 1:
             cnt += 1
             ret, frame = cap.read()
-            if cnt % 21 != 0 and cnt != 2:
-                continue
+
 
         if mode == 0:
             img, frame = input_module()
