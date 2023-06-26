@@ -28,48 +28,48 @@ For the key models, we've tried the following:
 - The **YOLOv7** model has a training time several times longer than a similar parameter model of v8.
 
 - **SPIGA** is a SOTA model for facial keypoint detection, but obviously, the SOTA is the **accuracy** on large datasets, not **accuracy/performance**. Its average inference speed per frame on the official required hardware (an old 2-core 8GB cpu) reached an astonishing ***1.404s per frame***(*😓). It was eventually eliminated due to its poor edge deployment capability.
-> For reference, at 640 x 640
+> Just so you know, at 640 x 640
 > 
 > YOLOv8: 230ms per frame
 > 
 > Renita: 56ms per frame
 > 
 - **Renita** is a model reference provided by the official Baseline, and is the model we finally chose. This model performs well in a car interior environment where the occlusion and lighting conditions are not complicated.
-  💡 As a reference, the average single frame inference speed on official hardware is:
-
 
 ---
 
-## File Guidance
+## A Quick Tour of Our Files
 
-BaselineLandmark/detectionx.2: The last submission
+BaselineLandmark/detectionx.2: Our final bow
 
-submit/detection8: The final version of YOLOv8 + SPIGA
+submit/detection8: The last act of YOLOv8 + SPIGA
 
 ![Untitled](README/Untitled.jpeg)
 
-BaselineLandmark/makeup: Debugging script for Retina + YOLOv8
+BaselineLandmark/makeup: Our backstage pass for tweaking Retina + YOLOv8
 
 ![frame_120.jpg](README/frame_120.jpg)
 
 
 ---
 
-## Trivia
+## Fun Facts
 
-**Why is the main code of the main program all lumped together? Don't you encapsulate at all?**
+**Why does the main code look like a huge pile? Don't we do any encapsulation?**
 
-- The main program, in order to be close to the baseline submission format and facilitate tuning, has not been encapsulated. *Although the structure is almost identical, the main program was not referenced to the baseline at all when writing, so the person who started the porting was scratching his head.*
-- And the whole project is **single programmer** and **linear work**, everyone's division of work area is clear enough, so there is no need to consider whether others can understand, everyone **does not have the time and energy**~~nobody reads it except me~~.
+- Our main program, in a bid to stick close to the baseline submission format and make tuning easier, stayed away from encapsulation. *Even though it looked similar to the baseline, the main program was written without any peeking at it, which gave the person who started porting quite a headache.*
+- And with this whole project being a **solo gig** and a **linear job**, everyone knew their roles inside out, so there was no need to worry about others not getting it. Everyone **simply didn't have the time or energy**~~and let's be honest, nobody was reading it except me~~.
 
-> The best division of labor is when one person's work covers all aspects of this part of the work.
+> The best way to divide the work? One person covers all bases.
 > 
 
-**How did you do in the competition?**
+**How'd we fare in the competition?**
 
-The competition evaluates the F1-Score (accuracy) and speed. In the facial keypoint part, by using sequential pattern recognition, we have achieved **all that should be checked.**
+The competition judged us on F1-Score (accuracy) and speed. On the facial keypoint front, by pulling in sequential pattern recognition, we managed to cover all bases.
 
-**What were the difficulties in the competition?**
+**Any hurdles during the competition?**
 
-- The size of the dataset is a bit exaggerated (2066 * 8s video sequences)
-- Huawei Cloud ModelArts' online deployment feature (submission for ranking needs to be done through this method), the document is missing, featuring a complete lack of information. Contestants need to reverse engineer its operation process before making a stable submission 😓.
+- The size of the dataset was a beast (2066 * 8s video sequences)
+- Huawei Cloud ModelArts' online deployment feature (which we had to use for
+
+ submission) was as clear as mud - practically nothing was there. We had to play detective and figure out how it works before we could make a stable submission 😓.
