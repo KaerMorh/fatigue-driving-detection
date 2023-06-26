@@ -1,4 +1,4 @@
-# fatigue-driving-detection
+# fatigue-driving-detection-archived
 [English](README.md) | [简体中文](README.zh-CN.md)
 
 Project for the Challenge Cup 2023 Huawei Industrial Contest: **Fatigue Driving Detection**
