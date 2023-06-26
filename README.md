@@ -1,74 +1,75 @@
 # fatigue-driving-detection
+[English](README.md) | [简体中文](README.zh-CN.md)
 
-挑战杯2023华为产业赛道的命题：**疲劳驾驶识别**
+Project for the Challenge Cup 2023 Huawei Industrial Contest: **Fatigue Driving Detection**
 
-涉及的知识栈包括：人脸检测，面部关键点识别，序列判断。
+Knowledge stacks involved include: Face detection, Facial keypoint recognition, Sequential judgement.
 
 ---
 
-## 涉及模型说明
+## Model Description
 
-对于关键模型，我们做了以下尝试：
+For the key models, we've tried the following:
 
 1. YOLOv5 + Dlib
 2. YOLOv5 + SPIGA
 3. YOLOv7 + SPIGA
-4. **YOLOv7 + Renita（baseline）**
+4. **YOLOv7 + Renita (baseline)**
 5. YOLOv8 + SPIGA
-6. **YOLOv8 + Renita （last submit）**
+6. **YOLOv8 + Renita (last submit)**
     
     ---
     
 
-## 调参体验
+## Parameter Tuning Experience
 
-- **YOLOv5s** 的模型在识别**精准度**和**速度**上都稍逊于 **YOLOv8n**
+- The **YOLOv5s** model is slightly inferior to **YOLOv8n** in terms of both **accuracy** and **speed**.
   
-- **YOLOv7** 的模型在**训练时间**上要比v8的相似参数模型长数倍
+- The **YOLOv7** model has a training time several times longer than a similar parameter model of v8.
 
-- **SPIGA** 是人脸关键点检测的一个SOTA模型，但显然SOTA的是大数据集上的**准确率**，而非**准确率/性能。**其单帧平均推理速度在官方要求的硬件（2核8GB的老式cpu）中达到了惊人的 ***1.404s per** **frame**(*😓)。最后因其糟糕的边缘部署能力而被淘汰。
-> 仅供参考，在640 x 640下
+- **SPIGA** is a SOTA model for facial keypoint detection, but obviously, the SOTA is the **accuracy** on large datasets, not **accuracy/performance**. Its average inference speed per frame on the official required hardware (an old 2-core 8GB cpu) reached an astonishing ***1.404s per frame***(*😓). It was eventually eliminated due to its poor edge deployment capability.
+> For reference, at 640 x 640
 > 
-> YOLOv8：230ms per frame
+> YOLOv8: 230ms per frame
 > 
->  Renita：56ms per frame
+> Renita: 56ms per frame
 > 
-- **Renita** 是官方Baseline提供的模型参考，也是我们最后选用的模型。此模型在遮挡和光照条件并不复杂的车内环境表现良好。
-  💡 作为参考，在官方硬件下的单平均帧推理速度：
+- **Renita** is a model reference provided by the official Baseline, and is the model we finally chose. This model performs well in a car interior environment where the occlusion and lighting conditions are not complicated.
+  💡 As a reference, the average single frame inference speed on official hardware is:
 
 
 ---
 
-## 文件指引
+## File Guidance
 
-BaselineLandmark/detectionx.2 ： 最后一次提交
+BaselineLandmark/detectionx.2: The last submission
 
-submit/detection8：YOLOv8 + SPIGA的最后一版
+submit/detection8: The final version of YOLOv8 + SPIGA
 
 ![Untitled](README/Untitled.jpeg)
 
-BaselineLandmark/makeup ： Retina + YOLOv8的调试脚本
+BaselineLandmark/makeup: Debugging script for Retina + YOLOv8
 
 ![frame_120.jpg](README/frame_120.jpg)
 
 
 ---
 
-## 琐事
+## Trivia
 
-**为什么主程序的主要代码都是一坨？你完全不封装吗？**
+**Why is the main code of the main program all lumped together? Don't you encapsulate at all?**
 
-- 为什么其中主程序为了与贴近baseline的提交格式，且便于调优，并没有作封装处理。*（虽然结构几乎一致，但主程序在编写时完全没有参考baseline，以至于最开始作移植的同学挠破了头）*
-- 并且整个项目都是**单人编程**和**线性作业**，每个人的分工区域足够清晰，因此并不需要考虑别人能不能读懂，大家都**没那个时间和精力**~~除了我以外根本没人读~~。
+- The main program, in order to be close to the baseline submission format and facilitate tuning, has not been encapsulated. *Although the structure is almost identical, the main program was not referenced to the baseline at all when writing, so the person who started the porting was scratching his head.*
+- And the whole project is **single programmer** and **linear work**, everyone's division of work area is clear enough, so there is no need to consider whether others can understand, everyone **does not have the time and energy**~~nobody reads it except me~~.
 
-> 最好的分工即 一个人的工作足够涉及这部分工作所有的方面。
+> The best division of labor is when one person's work covers all aspects of this part of the work.
 > 
 
-**成绩如何？**
+**How did you do in the competition?**
 
-比赛通过对F1-Score（精准率）与速度进行统一衡量。在人脸关键点部分，通过运用序列的模式识别，我们已经做到了**应检尽检。**
+The competition evaluates the F1-Score (accuracy) and speed. In the facial keypoint part, by using sequential pattern recognition, we have achieved **all that should be checked.**
 
-**比赛的难点有哪些？**
+**What were the difficulties in the competition?**
 
-- 数据集的大小有点夸张了（2066 * 8s 的视频序列）
-- 华为云ModelArts的在线部署功能（打榜需要通过此方法提交）的文档应缺尽缺，主打一个什么都没有。选手在稳定提交之前还要先逆向工程出其运作流程 😓
+- The size of the dataset is a bit exaggerated (2066 * 8s video sequences)
+- Huawei Cloud ModelArts' online deployment feature (submission for ranking needs to be done through this method), the document is missing, featuring a complete lack of information. Contestants need to reverse engineer its operation process before making a stable submission 😓.
