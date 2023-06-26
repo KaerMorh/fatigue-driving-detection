@@ -45,6 +45,12 @@ BaselineLandmark/detectionx.2 ： 最后一次提交
 
 submit/detection8：YOLOv8 + SPIGA的最后一版
 
+![Untitled](README/Untitled.jpeg)
+
+BaselineLandmark/makeup ： Retina + YOLOv8的调试脚本
+
+![frame_120.jpg](README/frame_120.jpg)
+
 ---
 
 ## 琐事
