@@ -70,6 +70,4 @@ The competition judged us on F1-Score (accuracy) and speed. On the facial keypoi
 **Any hurdles during the competition?**
 
 - The size of the dataset was a beast (2066 * 8s video sequences)
-- Huawei Cloud ModelArts' online deployment feature (which we had to use for
-
- submission) was as clear as mud - practically nothing was there. We had to play detective and figure out how it works before we could make a stable submission 😓.
+- Doc of Huawei Cloud ModelArts' online deployment feature (which we had to use for submission) was as clear as mud - practically nothing was there. We had to play detective and figure out how it works before we could make a stable submission 😓.
