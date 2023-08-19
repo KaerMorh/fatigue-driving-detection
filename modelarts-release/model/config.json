@@ -1,0 +1,95 @@
+{
+    "model_algorithm": "triple_yolo2detect",
+    "model_type": "PyTorch",
+    "runtime": "python3.7",
+    "apis": [
+        {
+            "procotol": "http",
+            "url": "/",
+            "method": "post",
+            "request": {
+                "Content-type": "multipart/form-data",
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "input_video": {"type": "file"}
+                    },
+                    "required": ["input_video"]
+                }
+            },
+            "response": {
+                "Content-type": "applicaton/json",
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "result": {"type": "number", "type": "number" }
+                    },
+                    "required": ["result"]
+                }
+            }
+        }
+    ],
+    "dependencies": [
+        {
+            "installer": "pip",
+            "packages": [
+                {
+                    "package_name": "onnxruntime",
+                    "package_version": "",
+                    "restraint": ""
+                },
+                {
+                    "package_name": "numpy",
+                    "package_version": "",
+                    "restraint": ""
+                },
+                {
+                    "package_name": "scipy",
+                    "package_version": "",
+                    "restraint": ""
+                },
+                {
+                    "package_name": "pandas",
+                    "package_version": "",
+                    "restraint": ""
+                }
+                ,
+                {
+                    "package_name": "torch",
+                    "package_version": "1.8.0",
+                    "restraint": "ATLEAST"
+                },
+                {
+                    "package_name": "torchvision",
+                    "package_version": "0.9.0",
+                    "restraint": "ATLEAST"
+                },
+                {
+                    "package_name": "tqdm",
+                    "package_version": "",
+                    "restraint": ""
+                },
+                {
+                    "package_name": "PyYAML",
+                    "package_version": "",
+                    "restraint": ""
+                },
+                {
+                    "package_name": "Pillow",
+                    "package_version": "",
+                    "restraint": ""
+                },
+                {
+                    "package_name": "matplotlib",
+                    "package_version": "",
+                    "restraint": ""
+                },
+                {
+                    "package_name": "seaborn",
+                    "package_version": "",
+                    "restraint": ""
+                }
+            ]
+        }
+    ]
+}
