@@ -66,6 +66,7 @@ BaselineLandmark/makeup: Our backstage pass for tweaking Retina + YOLOv8
 **How'd we fare in the competition?**
 
 The competition judged us on F1-Score (accuracy) and speed. On the facial keypoint front, by pulling in sequential pattern recognition, we managed to cover all bases.
+_Top 50 now!_
 
 **Any hurdles during the competition?**
 
