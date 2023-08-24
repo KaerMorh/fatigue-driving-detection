@@ -223,6 +223,7 @@ def main():
     check_photo_dir =r'F:\ccp2\side_photo\croped'
     hvw = 1080 / 1152
 
+
     # change_photo(photo_dir, photo_output_dir, label_dir, label_output_dir, hvw)
     process_labels(label_output_dir, check_photo_dir)
 
