@@ -288,7 +288,7 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
         mStart = 49
         mEnd = 66
         EAR_THRESHOLD = 0.16
-        YAWN_THRESHOLD = 0.5
+        YAWN_THRESHOLD = 0.6
         face_num = 0
 
         new_test = 0
@@ -306,7 +306,7 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
 
         if cnt % tickness != 0 and not (cnt in last_confirm):
             continue
-        if cnt + int(fps * 0.2) > frames :  # 最后三秒，若没有异常则不判断了
+        if cnt + int(fps * 0.8) > frames :  # 最后三秒，若没有异常则不判断了
             #如果result_list最后一位是0
             if len(result_list) > 0 and result_list[-1] == 0:
                 break
@@ -514,11 +514,13 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
             if (on_behavior == 1 and not (is_eyes_closed)) or (on_behavior == 3 and not (phone_around_face)) or (on_behavior == 4 and not (is_turning_head)) or  (on_behavior == 2 and not (is_yawning)):
                 start_time = int(temp_start_time) - 350
                 end_time = int(cnt/fps*1000) -200
-                insert_drowsy_behavior(result,on_behavior,start_time, end_time)
-                # if (int(time.time())%4 == 0):
-                #     insert_drowsy_behavior(result, on_behavior, start_time+50, end_time+50)
-                on_behavior = 0
-                temp_start_time = None
+                if end_time - start_time >= 2500:
+                    #小于两秒五的不插入
+                    insert_drowsy_behavior(result,on_behavior,start_time, end_time)
+                    # if (int(time.time())%4 == 0):
+                    #     insert_drowsy_behavior(result, on_behavior, start_time+50, end_time+50)
+                    on_behavior = 0
+                    temp_start_time = None
 
         if is_eyes_closed:
             print(f'ear:{ear}')
@@ -671,8 +673,8 @@ def accumulate_time_results(time_count_result, time_final_result):
     return time_final_result
 def main():
     # video_dir = r'F:\ChallengeCup'
-    video_dir = r'D:\0000000\new_dataset\bo'
-    # video_dir = r'F:\ccp2\interference\check'
+    video_dir = r'D:\0000000\new_dataset\bo\test'
+    # video_dir = r'F:\ccp1\lawn'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
     video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]
