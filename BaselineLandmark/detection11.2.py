@@ -519,8 +519,8 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
                     insert_drowsy_behavior(result,on_behavior,start_time, end_time)
                     # if (int(time.time())%4 == 0):
                     #     insert_drowsy_behavior(result, on_behavior, start_time+50, end_time+50)
-                    on_behavior = 0
-                    temp_start_time = None
+                on_behavior = 0
+                temp_start_time = None
 
         if is_eyes_closed:
             print(f'ear:{ear}')
@@ -672,8 +672,8 @@ def accumulate_time_results(time_count_result, time_final_result):
         time_final_result[key] += value
     return time_final_result
 def main():
-    # video_dir = r'F:\ChallengeCup'
-    video_dir = r'D:\0000000\new_dataset\bo\test'
+    video_dir = r'F:\ChallengeCup'
+    # video_dir = r'D:\0000000\new_dataset\bo\test'
     # video_dir = r'F:\ccp1\lawn'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
