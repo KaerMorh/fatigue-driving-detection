@@ -104,7 +104,38 @@ def check_sequence(ear_list, result_list, diff_threshold=0.04):
             return True
 
     return False
+def ear_realtime_check_sequence(ear_list, result_list, new_ear, diff_threshold=0.04):
+    i = len(ear_list) - 1
+    ear_window = []
+    if new_ear < 0.18:
+        # 初始化滑动窗口 ear_window
+        ear_window = [new_ear]
 
+        n = 0
+        while i - n >= 0:
+            # 扩充条件
+            current_ear = ear_list[i - n]
+
+
+            # 根据给定的条件检查当前 ear 值
+            if (
+                    current_ear < 0.18 and
+                    result_list[i - n] in [0, 1] and
+                    (n == 0 or abs(current_ear - ear_list[i - n + 1]) < diff_threshold)):
+                # 如果满足条件，则将当前 ear 添加到 ear_window
+                ear_window.insert(0, current_ear)
+                n += 1
+            else:
+                # 如果不满足条件，则结束
+                break
+
+        ear_window_mean = sum(ear_window) / len(ear_window) if ear_window else 0
+        # ear_list 中除去 ear_window 的其他的值的平均值
+        other_ears = [ear for idx, ear in enumerate(ear_list) if idx < i - n or idx >= i - n + len(ear_window)]
+        other_ears_mean = sum(other_ears) / len(other_ears) if other_ears else 0
+        ear_window_mean >= 0.9 * other_ears_mean
+        # 返回从当前帧开始的最早的连续闭眼帧的位置
+    return i - n + 1 if ear_window else i
 
 
 def run_video(video_path, save_path,yolo_model,side_model,tracker):
@@ -454,7 +485,16 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
             # is_moving = True if landmark_entropy > 50 else False
 ################################################################################
             is_yawning = True if mar > YAWN_THRESHOLD else False
-            is_eyes_closed = True if (ear < EAR_THRESHOLD) else False
+            close_start_cnt = None
+            if (ear < EAR_THRESHOLD):
+                is_eyes_closed = True
+            else:
+                close_start_cnt = ear_realtime_check_sequence(ear_list, result_list, ear, diff_threshold=0.04)
+                if close_start_cnt != len(ear_list) and close_start_cnt is not None and close_start_cnt != len(ear_list) -1:
+                    is_eyes_closed = True
+                    temp_start_time = result_cnt_list[close_start_cnt]/fps*1000
+
+
             # if cnt == 2 and ear < EAR_THRESHOLD: # 第二帧就识别成小眼
             #     EAR_THRESHOLD = 0.15
             # is_eyes_closed = True if (L_E < EAR_THRESHOLD or R_E < EAR_THRESHOLD) else False
@@ -631,7 +671,7 @@ def accumulate_time_results(time_count_result, time_final_result):
     return time_final_result
 def main():
     # video_dir = r'F:\ChallengeCup'
-    video_dir = r'D:\0000000\new_dataset\bo\test'
+    video_dir = r'D:\0000000\new_dataset\bo'
     # video_dir = r'F:\ccp2\interference\check'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
