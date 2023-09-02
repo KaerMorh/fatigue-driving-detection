@@ -433,7 +433,7 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
     yolo2_list = []
     poses_list = []
     last_cnt = False
-    inactivations = [1,28,52]
+    inactivations = []
     last_confirm = []
     # 用于判断是否在看手机
     front_face = True
@@ -498,7 +498,7 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
         EAR_THRESHOLD = 0.16
         YAWN_THRESHOLD = 0.6
         face_num = 0
-        poses = [0,0,0,0]
+        poses = [0,0,0,0,0]
 
         new_test = 0
 
@@ -516,7 +516,7 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
         if (cnt + fps * 0.5) > frames:
             last_cnt = True
 
-        if cnt % tickness != 0 or (cnt in last_confirm):
+        if cnt % tickness != 0 and  (cnt != 1):
             if (cnt-buff_tickness) % tickness == 0 and (cnt - buff_tickness) != 0: #buff_tickness = int(tickness/2)
                 photo_buff.append(frame)
                 cnt_photo_buff.append(cnt)
@@ -628,13 +628,16 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
             if len(faces) > 0:              #关键点检测部分
                 face_num = None
                 max_x = 0
+                face_area = 0
                 for face_num_index, f in enumerate(faces):
                     if max_x <= (f.bbox[1] + f.bbox[3]) / 2:
                         face_num = face_num_index
                         max_x = (f.bbox[1] + f.bbox[3]) / 2
+
                 if face_num is not None:
                     f = faces[face_num]
                     f = copy.copy(f)
+                    face_area = np.abs(int(f.bbox[2] * f.bbox[3]))
                     print(f'box[0]:{max_x}')
 
                     # 检测是否转头
@@ -650,6 +653,7 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
                         stander_poses.append(f.euler[1])
                         stander_poses.append(f.euler[2])
                         stander_poses.append(max_x)
+                        stander_poses.append(face_area)
                         # stander_poses[1] = (f.euler[1] + 180 )/2
                         # stander_poses[2] = (f.euler[2] + 180 )/2
                         # stander_poses[3] = max_x
@@ -666,17 +670,18 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
                     poses[1] = (f.euler[1])
                     poses[2] = (f.euler[2])
                     poses[3] = max_x
+                    poses[4] = face_area
 
             time8 = time.time()
             time_face_data_process += time8 - time7
         ################################################  转头的yolo判断
             #这个地方需要有两种策略:如果这里传入frame,则不需要进行在画幅右4/9的判断.如果传入的img0则需要判断.
-            if len(stander_poses) == 0:
+            if len(stander_poses) * poses[4] == 0:
                 is_turning_head = True
                 #poses[3]的绝对值和max_x相差过大
             elif np.abs(stander_poses[3] - max_x) >= 80:
                 is_turning_head = True
-            elif np.abs(stander_poses[0] - poses[0]) >= 45 or np.abs(stander_poses[1] - poses[1]) >= 30 or np.abs(stander_poses[2] - poses[2]) >= 30:
+            elif  np.abs(stander_poses[1] - poses[1]) >= 30 or np.abs(stander_poses[2] - poses[2]) >= 30 or (np.abs(stander_poses[4]) * 0.75 > np.abs(poses[4])): #np.abs(stander_poses[0] - poses[0]) >= 45 or
                 is_turning_head = True
             else:
                 is_turning_head = False
@@ -750,10 +755,11 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
                     print(f'recheck end error {e}')
 
                 if recheck_start_frame == on_behavior and frame1_cnt is not None:
-                    start_time = int(frame1_cnt / fps * 1000) - 70
+                    # 如果小于0则令其等于0
+                    start_time = 0 if int(frame1_cnt / fps * 1000) - 70 < 0 else int(frame1_cnt / fps * 1000) - 70
 
                 if recheck_end_frame == on_behavior and frame2_cnt is not None:
-                    end_time = int(frame2_cnt / fps * 1000) - 50
+                    end_time = 0 if int(frame2_cnt / fps * 1000) -50 < 0 else int(frame2_cnt / fps * 1000) -50
 
 
 
@@ -918,9 +924,9 @@ def accumulate_time_results(time_count_result, time_final_result):
         time_final_result[key] += value
     return time_final_result
 def main():
-    video_dir = r'F:\ChallengeCup\an\1'
+    # video_dir = r'F:\ChallengeCup\an'
     # video_dir = r'D:\0000000\new_dataset\bo'
-    # video_dir = r'F:\ccp1\lawn'
+    video_dir = r'F:\ccp1\close'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
     video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]
@@ -928,11 +934,7 @@ def main():
     yolo_model = YOLO('bestface.pt')
     side_model = YOLO('best ce_face.pt')
 
-    tracker = Tracker(960, 1080, threshold=None, max_threads=4, max_faces=4,
-                      discard_after=10, scan_every=3, silent=True, model_type=3,
-                      model_dir=None, no_gaze=False, detection_threshold=0.6,
-                      use_retinaface=0, max_feature_updates=900,
-                      static_model=True, try_hard=False)
+
     device = 'cpu'
     results = yolo_model(cv2.imread('bus.jpg'))
     results = side_model(cv2.imread('bus.jpg'))
@@ -956,6 +958,11 @@ def main():
         print(video_file)
 
         try:
+            tracker = Tracker(960, 1080, threshold=None, max_threads=4, max_faces=4,
+                              discard_after=10, scan_every=3, silent=True, model_type=3,
+                              model_dir=None, no_gaze=False, detection_threshold=0.6,
+                              use_retinaface=0, max_feature_updates=900,
+                              static_model=True, try_hard=False)
             result, result_list, result_cnt_list, mar_list, ear_list, L_E_list, R_E_list, time_count_result = run_video(video_path, save_path, yolo_model, side_model, tracker)
             json_save_path = save_path.rsplit('.', 1)[0] + '.json'
             accumulate_time_results(time_count_result, time_final_result)
