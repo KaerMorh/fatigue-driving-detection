@@ -115,9 +115,9 @@ def single_frame_detection(frame,yolo_model, side_model, tracker,YAWN_THRESHOLD,
             face_num = None
             max_x = 0
             for face_num_index, f in enumerate(faces):
-                if max_x <= f.bbox[3]:
+                if max_x <= (f.bbox[1]+f.bbox[3])/2:
                     face_num = face_num_index
-                    max_x = f.bbox[3]
+                    max_x = (f.bbox[1]+f.bbox[3])/2
             if face_num is not None:
                 f = faces[face_num]
                 f = copy.copy(f)
@@ -431,7 +431,8 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
     side_list = []
     yolo1_list = []
     yolo2_list = []
-
+    poses_list = []
+    last_cnt = False
     inactivations = [1,28,52]
     last_confirm = []
     # 用于判断是否在看手机
@@ -451,7 +452,8 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
     time_total_result_process = 0
 
 
-
+    ##人脸方位角初始化
+    stander_poses = []#poses[0] - poses[2] 为人脸方位角 poses[3]为box[0]的位置 区间为100
 
     now = time.time()  # 读取视频与加载模型的时间不被计时（？）
 
@@ -469,6 +471,7 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
         time9 = 0
         time10 = 0
         time0 = time.time()
+
         if cnt >= frames:
             break
         phone_around_face = False
@@ -483,7 +486,7 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
         landmark_entropy, trl_entropy, mar, ear, aar = 0,0,0,888,0
         L_E, R_E = 888,888  # 左右眼睛的状态
         overlap = 0
-        standard_pose = [180, 40, 80]
+        standard_pose = [180, 10, 80]
         lStart = 42
         lEnd = 48
         # (rStart, rEnd) = (36, 42)
@@ -495,6 +498,7 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
         EAR_THRESHOLD = 0.16
         YAWN_THRESHOLD = 0.6
         face_num = 0
+        poses = [0,0,0,0]
 
         new_test = 0
 
@@ -508,13 +512,16 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
         ret, frame = cap.read()
         time1 = time.time()
         time_read_video = time1 - time0
+        last_confirm = [1]
+        if (cnt + fps * 0.5) > frames:
+            last_cnt = True
 
-        if cnt % tickness != 0 and not (cnt in last_confirm):
+        if cnt % tickness != 0 or (cnt in last_confirm):
             if (cnt-buff_tickness) % tickness == 0 and (cnt - buff_tickness) != 0: #buff_tickness = int(tickness/2)
                 photo_buff.append(frame)
                 cnt_photo_buff.append(cnt)
             continue
-        if cnt + int(fps * 0.8) > frames :  # 最后三秒，若没有异常则不判断了
+        if cnt + int(fps * 0.8) > frames and on_behavior == 0:  # 最后三秒，若没有异常则不判断了
             #如果result_list最后一位是0
             if len(result_list) > 0 and result_list[-1] == 0:
                 break
@@ -622,9 +629,9 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
                 face_num = None
                 max_x = 0
                 for face_num_index, f in enumerate(faces):
-                    if max_x <= f.bbox[3]:
+                    if max_x <= (f.bbox[1] + f.bbox[3]) / 2:
                         face_num = face_num_index
-                        max_x = f.bbox[3]
+                        max_x = (f.bbox[1] + f.bbox[3]) / 2
                 if face_num is not None:
                     f = faces[face_num]
                     f = copy.copy(f)
@@ -637,10 +644,16 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
                     # else:
                     #     is_turning_head = False
 
-                    # 检测是否闭眼
-                    # extract the left and right eye coordinates, then use the
-                    # coordinates to compute the eye aspect ratio for both eyes
-                    # 检测是否张嘴
+
+                    if len(stander_poses) == 0:
+                        stander_poses.append(np.abs(f.euler[0]))
+                        stander_poses.append(f.euler[1])
+                        stander_poses.append(f.euler[2])
+                        stander_poses.append(max_x)
+                        # stander_poses[1] = (f.euler[1] + 180 )/2
+                        # stander_poses[2] = (f.euler[2] + 180 )/2
+                        # stander_poses[3] = max_x
+
                     mar = mouth_aspect_ratio(f.lms)
                     leftEye = f.lms[lStart:lEnd]
                     rightEye = f.lms[rStart:rEnd]
@@ -649,46 +662,25 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
                     # average the eye aspect ratio together for both eyes
                     ear = (L_E + R_E) / 2.0
 
+                    poses[0] = np.abs(f.euler[0])
+                    poses[1] = (f.euler[1])
+                    poses[2] = (f.euler[2])
+                    poses[3] = max_x
+
             time8 = time.time()
             time_face_data_process += time8 - time7
         ################################################  转头的yolo判断
             #这个地方需要有两种策略:如果这里传入frame,则不需要进行在画幅右4/9的判断.如果传入的img0则需要判断.
-            side_results = side_model(img0)
-            time9 = time.time()
-            time_side_yolo += time9 - time8
-            side_boxes = side_results[0].boxes
-
-            # 获取所有类别
-            side_classes = side_boxes.cls
-            # 获取所有的置信度
-            side_confidences = side_boxes.conf
-
-            # 初始化最靠右的框和最靠右的手机
-            rightmost_box = None
-
-            rightmost_cls = None
-
-            # 遍历所有的边界框
-            for box, cls, conf in zip(side_boxes.xyxy, side_classes, side_confidences):
-                if box[0] > img_width * 0.477:
-                    if rightmost_box is None or box[0] > rightmost_box[0]:
-                        rightmost_box = box
-                        rightmost_cls = cls
-
-                # if rightmost_box is None or box[0] > rightmost_box[0]:
-                #     rightmost_box = box
-                #     rightmost_cls = cls
-
-
-            if rightmost_box is None:
-                yolo2 = None
+            if len(stander_poses) == 0:
                 is_turning_head = True
-            elif rightmost_cls != 0 and rightmost_cls is not None:
-                yolo2 = True
+                #poses[3]的绝对值和max_x相差过大
+            elif np.abs(stander_poses[3] - max_x) >= 80:
+                is_turning_head = True
+            elif np.abs(stander_poses[0] - poses[0]) >= 45 or np.abs(stander_poses[1] - poses[1]) >= 30 or np.abs(stander_poses[2] - poses[2]) >= 30:
                 is_turning_head = True
             else:
-                yolo2 = False
                 is_turning_head = False
+
 
 
             # is_moving = True if landmark_entropy > 50 else False
@@ -720,7 +712,7 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
 
         if on_behavior != 0:
             #如果动作改变
-            if (on_behavior == 1 and not (is_eyes_closed)) or (on_behavior == 3 and not (phone_around_face)) or (on_behavior == 4 and not (is_turning_head)) or  (on_behavior == 2 and not (is_yawning)):
+            if last_cnt or (on_behavior == 1 and not (is_eyes_closed)) or (on_behavior == 3 and not (phone_around_face)) or (on_behavior == 4 and not (is_turning_head)) or  (on_behavior == 2 and not (is_yawning)):
                 temp_start_cnt = temp_start_time/1000 * fps #这几个变量都没有预先定义，只限定在此if区域使用
                 end_cnt = cnt
                 recheck_start_frame = 0
@@ -838,6 +830,7 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
             yolo2_list.append(yolo2)
             last_frame_result = frame_result
 
+            poses_list.append(poses)
         real_fps_3s = int(fps_3s * alpha)
         if use_phone_frame >= int(fps_3s * mar_alpha):  #帧数
             on_behavior = 3
@@ -886,18 +879,19 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
     #         result['result']['category'] = 0
     final_time = time.time()
     duration = int(np.round((final_time - now) * 1000))
-    print(f'len(result_list):{len(result_list)}')
-    print(f'result_list:{result_list}')
-    print(f'result_cnt_list:{result_cnt_list}')
-    print(f'cnt_photo_buff{cnt_photo_buff}')
-    print(f'mar_list:{mar_list}')
-    print(f'ear_list:{ear_list}')
-    print(f'L_E_list:{L_E_list}')
-    print(f'R_E_list:{R_E_list}')
-    print(f'iou_list:{iou_list}')
-    print(f'side_list:{side_list}')
-    print(f'yolo1_list:{yolo1_list}')
-    print(f'yolo2_list:{yolo2_list}')
+    print(f'len(result_list)={len(result_list)}')
+    print(f'result_list={result_list}')
+    print(f'result_cnt_lis={result_cnt_list}')
+    print(f'cnt_photo_buff={cnt_photo_buff}')
+    print(f'mar_list={mar_list}')
+    print(f'ear_list={ear_list}')
+    print(f'L_E_list={L_E_list}')
+    print(f'R_E_list={R_E_list}')
+    print(f'iou_list={iou_list}')
+    print(f'side_list={side_list}')
+    print(f'yolo1_list={yolo1_list}')
+    print(f'yolo2_list={yolo2_list}')
+    print(f'poses_list={poses_list}')
     time_count_result = {
         'time_read_video': time_read_video,
         'time_pred1': time_pred1,
@@ -924,7 +918,7 @@ def accumulate_time_results(time_count_result, time_final_result):
         time_final_result[key] += value
     return time_final_result
 def main():
-    video_dir = r'F:\ChallengeCup'
+    video_dir = r'F:\ChallengeCup\an\1'
     # video_dir = r'D:\0000000\new_dataset\bo'
     # video_dir = r'F:\ccp1\lawn'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
