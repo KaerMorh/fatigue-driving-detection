@@ -722,8 +722,8 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
                 end_cnt = cnt
                 recheck_start_frame = 0
                 recheck_end_frame = 0
-                start_time = int(temp_start_time) #-350 -200
-                end_time = int(cnt / fps * 1000)
+                start_time = int(temp_start_time)-350 #-350 -200
+                end_time = int(cnt / fps * 1000) -200
                 frame1_cnt = None
                 frame2_cnt = None
                 try:
@@ -756,16 +756,15 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
 
                 if recheck_start_frame == on_behavior and frame1_cnt is not None:
                     # 如果小于0则令其等于0
-                    start_time = 0 if int(frame1_cnt / fps * 1000) - 70 < 0 else int(frame1_cnt / fps * 1000) - 70
+                    start_time = int(frame1_cnt / fps * 1000) -70
 
                 if recheck_end_frame == on_behavior and frame2_cnt is not None:
-                    end_time = 0 if int(frame2_cnt / fps * 1000) -50 < 0 else int(frame2_cnt / fps * 1000) -50
-
+                    end_time =int(frame2_cnt / fps * 1000) -50
 
 
                 if end_time - start_time >= 2500:
                     #小于两秒五的不插入
-                    insert_drowsy_behavior(result,on_behavior,start_time, end_time)
+                    insert_drowsy_behavior(result,on_behavior,max(start_time,0), end_time)
                     # if (int(time.time())%4 == 0):
                     #     insert_drowsy_behavior(result, on_behavior, start_time+50, end_time+50)
                 on_behavior = 0
@@ -925,8 +924,8 @@ def accumulate_time_results(time_count_result, time_final_result):
     return time_final_result
 def main():
     # video_dir = r'F:\ChallengeCup\an'
-    # video_dir = r'D:\0000000\new_dataset\bo'
-    video_dir = r'F:\ccp1\close'
+    video_dir = r'D:\0000000\new_dataset\bo'
+    # video_dir = r'F:\ccp1\close'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
     video_files = [f for f in os.listdir(video_dir) if f.lower().endswith(".mp4")]
