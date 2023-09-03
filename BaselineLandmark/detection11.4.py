@@ -110,14 +110,16 @@ def single_frame_detection(frame,yolo_model, side_model, tracker,YAWN_THRESHOLD,
             phone_around_face = True
     if phone_around_face == False:
         # 五个指标
-        faces = tracker.predict(img0)
+
+        frame_for_tracker = frame[:, int(img0.shape[1] / 2):, :]
+        faces = tracker.predict(frame_for_tracker)
         if len(faces) > 0:  # 关键点检测部分
             face_num = None
             max_x = 0
             for face_num_index, f in enumerate(faces):
-                if max_x <= (f.bbox[1]+f.bbox[3])/2:
+                if max_x <= (f.bbox[1]+f.bbox[3]/2):
                     face_num = face_num_index
-                    max_x = (f.bbox[1]+f.bbox[3])/2
+                    max_x = (f.bbox[1]+f.bbox[3]/2)
             if face_num is not None:
                 f = faces[face_num]
                 f = copy.copy(f)
@@ -472,6 +474,11 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
         time10 = 0
         time0 = time.time()
 
+        ##TODO:TEST
+        if cnt > 570:
+            print('1')
+
+
         if cnt >= frames:
             break
         phone_around_face = False
@@ -737,7 +744,7 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
                                        sensitivity)
                     print('recheck_start_frame', recheck_start_frame)
                 except ValueError as e:
-                    recheck_recheck_start_frame = 0
+                    recheck_start_frame = 0
                     print(f'recheck start error {e}')
 
                 try:
@@ -754,15 +761,21 @@ def run_video(video_path, save_path,yolo_model,side_model,tracker):
                     recheck_end_frame = 0
                     print(f'recheck end error {e}')
 
-                if recheck_start_frame == on_behavior and frame1_cnt is not None:
+                if frame1_cnt is not None:
+                    if recheck_start_frame == on_behavior:
                     # 如果小于0则令其等于0
-                    start_time = int(frame1_cnt / fps * 1000) -70
+                        start_time = int(frame1_cnt / fps * 1000) - 85
+                    else:
+                        start_time = temp_start_time - 100
 
-                if recheck_end_frame == on_behavior and frame2_cnt is not None:
-                    end_time =int(frame2_cnt / fps * 1000) -50
+                if frame2_cnt is not None:
+                    if recheck_end_frame == on_behavior:
+                        end_time =int(frame2_cnt / fps * 1000) + 100
+                    else:
+                        end_time = int(frame2_cnt/fps * 1000) - 50
 
 
-                if end_time - start_time >= 2500:
+                if end_time - start_time >= 2700:
                     #小于两秒五的不插入
                     insert_drowsy_behavior(result,on_behavior,max(start_time,0), end_time)
                     # if (int(time.time())%4 == 0):
@@ -924,7 +937,8 @@ def accumulate_time_results(time_count_result, time_final_result):
     return time_final_result
 def main():
     # video_dir = r'F:\ChallengeCup\an'
-    video_dir = r'D:\0000000\new_dataset\bo'
+    # video_dir = r'D:\0000000\new_dataset\bo'
+    video_dir = r'F:\ccp2\0'
     # video_dir = r'F:\ccp1\close'
     save_dir = r'D:\0---Program\Projects\aimbot\yolov5-master\yolov5-master\output'
 
