@@ -14,9 +14,9 @@ For the key models, we've tried the following:
 1. YOLOv5 + Dlib
 2. YOLOv5 + SPIGA
 3. YOLOv7 + SPIGA
-4. **YOLOv7 + Renita (baseline)**
+4. **YOLOv7 + Rentina (baseline)**
 5. YOLOv8 + SPIGA
-6. **YOLOv8 + Renita (last submit)**
+6. **YOLOv8 + Retina (last submit)**
     
     ---
     
